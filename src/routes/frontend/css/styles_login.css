@@ -1,0 +1,144 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+html,body{
+    height: 100%;
+}
+
+body{
+    font-family:'Google Sans';
+    background-color: ghostwhite;
+    display: grid;
+    grid-gap: 20px;
+    grid-template-rows: 8% 1fr auto;
+    grid-template-areas: 
+        "header"
+        "form"
+        "footer";
+}
+
+nav{
+    background-color: #007aff;
+    grid-area: header;    
+    display: flex;
+    justify-content: flex-start;
+    align-items: stretch;
+    width: 100%;
+}
+.img-nav-login{    
+    text-align: center;
+    list-style-type: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20%;
+}
+.img-nav-login:last-of-type {
+    width: 8%;
+}
+h1{
+    color: #fff;
+    text-align: right;
+    font-family:'Montserrat';
+    font-weight:400;
+    letter-spacing: -3px;
+}
+.img-background{
+    width: 100%;
+    height: 100%;
+    opacity: 1;
+    grid-area: form;
+}
+.div-form-login{
+    grid-area: form;
+    background-color: ghostwhite;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;    
+    width: 100%;
+    max-width: 350px;
+    height: 80%;
+    border-radius: 8px;
+    margin: auto;
+    margin-left: 42%;
+
+}
+.div-inner-form-login{
+    display: flex;
+    flex-direction: column;
+    margin: 15px 0;
+    align-items: flex-start;
+
+}
+label{
+    margin-bottom: 10px;
+
+}
+/* El contenedor se vuelve el punto de referencia relativo */
+.div-icon-wrapper {
+    position: relative;
+    display: inline-block; /* O "display: block;" según tu diseño actual */
+    width: 100%; /* Ajusta el ancho según lo necesites */
+}
+
+/* Coloca el icono flotando a la izquierda dentro del input */
+.div-icon-wrapper .icon-user {
+    position: absolute;
+    left: 10px; /* Distancia desde el borde izquierdo */
+    top: 50%;
+    transform: translateY(-50%); /* Centra el icono verticalmente */
+    color: #666; /* Color del icono, cámbialo a tu gusto */
+    pointer-events: none; /* Hace que el clic pase a través del icono hacia el input */
+}
+
+input{
+    padding: 5px 5px 5px 40px;
+    background-color: #d8cece;
+    outline: none;
+    border: none;
+    border-bottom: 2px solid rgba(0, 0, 0, 0);
+}
+input:focus{
+    border: none;
+    border-bottom: #007aff solid 2px;
+    color: #d8cece;
+    background-color: #fff;
+}
+input:hover{
+    border: none;    
+    color: #d8cece;
+    background-color: #fff;
+    border-bottom: #007aff solid 2px;
+}
+input::placeholder{
+    color: #000;
+    background-color:#d8cece;
+    opacity: .5;
+}
+input:focus::placeholder{
+    border: none;
+    border-bottom: #007aff solid 2px;
+    background-color:#fff;;
+}
+input:hover::placeholder{
+    background-color:#fff;;
+}
+button{
+    background-color: #fff;
+    border: #007aff solid 1px;
+    margin: auto;
+    padding: 4px;
+}
+button:hover{
+    background-color: #007aff;
+    border-color: #fff;
+    color: #fff;
+    transition-duration: 0.8s;
+}
+.footer-login{
+    grid-area: footer;
+    background-color: #007aff;
+}
