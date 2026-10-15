@@ -9,14 +9,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap" rel="stylesheet">
     <!--links de iconos-->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=person" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=person,password_2" />
     <title>Login Page</title>
 </head>
 <body>
     <!--Header de la pagina-->
     <nav class="nav-login">
-            <img class="img-nav-login" src="../images/cintillo-unermb.png" alt="">
-            <img class="img-nav-login" src="../images/sisunermb.png" alt="">
+            <a href="https://unermb.web.ve" class="image-wrapper">
+                <img class="img-nav-login" src="../images/cintillo-unermb.png" alt="">
+            </a>
+            <div class="image-wrapper">
+                <img class="img-nav-login" src="../images/sisunermb.png" alt="">
+            </div>
             <h1>BIENVENIDO AL REGISTRO MEDICO SISUNERMB</h1>
     </nav>
     <img class="img-background" src="../images/background.jpg" alt="">
@@ -35,9 +39,12 @@
         <!--Pide Contrasena-->
         <div class="div-inner-form-login">
             <label for="contrasena">Contraseña:</label>
-            <input placeholder="Ingrese su Contraseña" type="password" id="contrasena" name="password" required autocomplete="current-password">
+            <div class="div-icon-wrapper">
+                <span class="material-symbols-outlined icon-user">password_2</span>
+                <input placeholder="Ingrese su Contraseña" type="password" id="contrasena" name="password" required autocomplete="current-password">
+            </div>
         </div>
-        <!--Boton-->
+        <!--Boton Inicio de Sesion-->
         <div class="div-inner-form-login">
             <button type="submit">Iniciar Sesión</button>
         </div>
@@ -45,7 +52,7 @@
     </div>
     <!--Termina el formulario-->
     <footer class="footer-login">
-        <p>Creditos: Lorem ipsum dolor sit amet consectetur adipisicing elit. Dolor harum inventore suscipit fugit. Quasi reiciendis, voluptate neque facere debitis rem.</p>
+        <p>Creditos: Miguel Contreras, Arturo Perez, Omar Oberto Big 2026</p>
     </footer>
 </body>
 </html>
