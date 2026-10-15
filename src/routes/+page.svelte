@@ -1,59 +1,21 @@
+<!-- src/routes/+page.svelte -->
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
+  import { onMount } from 'svelte';
+  import { getDb } from '$lib/db/database'; // Asumo que database.ts está en src/lib/db/
 
-  let nombre = 'SISUNERMB';
-  let mensaje = '';
-  let estado = '';
-
-  async function probar() {
-    estado = 'Llamando a Rust...';
+  onMount(async () => {
     try {
-      mensaje = await invoke<string>('saludar', { nombre });
-      estado = '✅ Comunicación exitosa';
-    } catch (e) {
-      mensaje = `❌ Error: ${e}`;
-      estado = '❌ Falló la comunicación';
+      const db = await getDb();
+      // Nota: Cambia 'paciente' por una tabla que sepas que existe en tu BD
+      const result = await db.select<{ count: string }[]>(
+        'SELECT COUNT(*) as count FROM public."PACIENTE"'
+      );
+      console.log('📊 Pacientes en BD:', result[0].count);
+    } catch (error) {
+      console.error('❌ Error conectando a PostgreSQL:', error);
     }
-  }
+  });
 </script>
 
-<main>
-  <h1>Registro de Morbilidad Diaria SISUNERMB</h1>
-  <p>Prueba de integración Tauri + SvelteKit</p>
-
-  <label>
-    Nombre:
-    <input bind:value={nombre} />
-  </label>
-
-  <button on:click={probar}>Probar comunicación</button>
-
-  {#if estado}
-    <p><strong>{estado}</strong></p>
-  {/if}
-
-  {#if mensaje}
-    <p>{mensaje}</p>
-  {/if}
-</main>
-
-<style>
-  main {
-    font-family: system-ui, sans-serif;
-    padding: 2rem;
-    max-width: 600px;
-    margin: 0 auto;
-  }
-  input {
-    padding: 0.5rem;
-    margin-left: 0.5rem;
-    font-size: 1rem;
-  }
-  button {
-    display: block;
-    margin: 1rem 0;
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
-    cursor: pointer;
-  }
-</style>
+<h1>Morbilidad SISUNERMB</h1>
+<p>Abre la consola (F12) para verificar la conexión.</p>
