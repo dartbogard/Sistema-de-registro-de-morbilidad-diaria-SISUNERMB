@@ -1,0 +1,25 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body{
+    display: grid;
+}
+div{
+    background-color: #007aff;
+    width: 100%;
+    height: 20%;
+    grid-column: 1/3;
+    grid-row: 1/1;
+}
+nav{
+    padding: 20px;
+    background-color: #007aff;
+    grid-column: 1/1;
+    grid-row:1/-1;
+    height: 100%;
+    position: fixed;
+    left: 0;
+    top: 0;
+}
