@@ -1,4 +1,4 @@
-export interface Doctor {
+export interface Especialidad {
     id_especialidad:number;
     tipo_especialidad:string;
     fecha_creacion_especialidad:string;

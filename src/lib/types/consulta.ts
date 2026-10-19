@@ -1,4 +1,4 @@
-export interface Doctor {
+export interface Consulta{
     id_consulta:number;
     especialidad_consulta:string;
     usuario_consulta:number;

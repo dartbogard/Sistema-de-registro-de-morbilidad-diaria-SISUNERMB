@@ -1,4 +1,4 @@
-export interface usuario {
+export interface Uuario {
     id_usuario:number;
     nombre_usuario:string;
     rol_usuario:string;

@@ -1,4 +1,4 @@
-export interface Doctor {
+export interface Suspension {
     id_suspension:number;
     consulta_suspension:number;
     especialidad_suspension:number;
