@@ -1,4 +1,4 @@
-// src/lib/db/database.ts
+// src/lib/database.ts
 import Database from '@tauri-apps/plugin-sql';
 
 let dbInstance: Database | null = null;
