@@ -10,3 +10,9 @@ export interface Consulta{
     fecha_actualización_doctor:string | null;
     fecha_eliminacion_doctor:string | null;
 }
+
+// Tipo para registrar una nueva consulta
+export type CrearConsultaInput = Omit<
+  Consulta,
+  'id_consulta' | 'fecha_creacion_consulta' | 'fecha_actualizacion_consulta' | 'fecha_eliminacion_consulta'
+>;

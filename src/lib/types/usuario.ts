@@ -1,4 +1,4 @@
-export interface Uuario {
+export interface Usuario {
     id_usuario:number;
     nombre_usuario:string;
     rol_usuario:string;
@@ -6,3 +6,8 @@ export interface Uuario {
     fecha_actualización_usuario:string | null;
     fecha_eliminacion_usuario:string | null;
 }
+
+export type CrearUsuarioInput = Omit<
+  Usuario,
+  'id_usuario' | 'fecha_creacion_usuario' | 'fecha_actualizacion_usuario' | 'fecha_eliminacion_usuario'
+>;

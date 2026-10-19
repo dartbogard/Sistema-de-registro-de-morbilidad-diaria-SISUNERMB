@@ -9,3 +9,9 @@ export interface Suspension {
     fecha_actualización_suspension:string | null;
     fecha_eliminacion_suspension:string | null;
 }
+
+// Tipo para crear un reposo / suspensión médica
+export type CrearSuspensionInput = Omit<
+  Suspension,
+  'id_suspension' | 'fecha_creacion_suspension' | 'fecha_actualizacion_suspension' | 'fecha_eliminacion_suspension'
+>;
