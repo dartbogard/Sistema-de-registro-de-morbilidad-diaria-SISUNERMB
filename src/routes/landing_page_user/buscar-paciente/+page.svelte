@@ -50,6 +50,10 @@ async function manejarBusqueda() {
 >
   {cargando ? 'Buscando...' : 'Buscar Paciente'}
 </button>
+<a href="/landing_page_user" class="btn-regresar">
+      <span class="material-symbols-outlined">arrow_back</span>
+      Volver al Panel
+    </a>
  </form>
 
  <!-- Mensajes de Error o Alertas -->

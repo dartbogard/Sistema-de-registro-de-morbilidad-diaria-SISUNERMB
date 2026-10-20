@@ -63,7 +63,7 @@
       <!-- Listado de Modulos en la pagina -->
       <ul class="ul-sidebar">
         <!-- Registrar Paciente -->
-        <a href="#registrar-paciente">
+         <a href="landing_page_user/crear-paciente">
           <li>
             <span class="material-symbols-outlined">person</span>
             Registrar Paciente
