@@ -103,7 +103,7 @@
         </a>
 
         <!-- Busqueda Paciente -->
-        <a href="#busqueda-paciente">
+        <a href="landing_page_user/buscar-paciente">
           <li>
             <span class="material-symbols-outlined">search</span>
             Búsqueda Paciente
