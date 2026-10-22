@@ -183,6 +183,7 @@ cargando = false;
     align-items: center;
     width: 100%;
     height: 100%;
+    border-bottom: 4px solid #01458d;
   }
 
   .image-wrapper {
@@ -204,8 +205,10 @@ cargando = false;
     color: #fff;
     text-align: right;
     font-family: 'Montserrat', sans-serif;
-    font-weight: 400;
+    font-weight: 300;
     letter-spacing: -1px;
+    width: 100%;
+    padding-right: 3%;
   }
 
   /* BODY Y FONDO */
