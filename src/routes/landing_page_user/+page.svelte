@@ -124,6 +124,7 @@
   <!-- Seccion Principal -->
   <main class="main-landing-user">
     <!-- Aquí irá el contenido dinámico de cada módulo -->
+     <p>pene</p>
   </main>
 
 </div>
