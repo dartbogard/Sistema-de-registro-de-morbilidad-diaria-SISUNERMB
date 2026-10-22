@@ -79,7 +79,7 @@
         </a>
 
         <!-- Historial Paciente -->
-        <a href="#historial-paciente">
+        <a href="/landing_page_user/historial-paciente">
           <li>
             <span class="material-symbols-outlined">history</span>
             Historial Paciente
