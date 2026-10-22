@@ -48,3 +48,29 @@ export async function obtenerHistorialConsultas() {
      ORDER BY c.fecha_consulta DESC`
   );
 }
+export async function obtenerHistorialPorCedula(cedula: string) {
+  const db = await getDb();
+  const cedulaLimpia = cedula.trim();
+  
+  if (!cedulaLimpia) return [];
+
+  return await db.select(
+    `SELECT 
+      c.id_consulta,
+      c.fecha_consulta,
+      c.diagnostico_consulta,
+      p.nombre_completo_paciente,
+      p.ci_titular_paciente,
+      p.ci_beneficiario_paciente,
+      d.nombre_doctor || ' ' || d.apellido_doctor AS nombre_doctor,
+      e.tipo_especialidad
+     FROM public."CONSULTA" c
+     INNER JOIN public."PACIENTE" p ON c.paciente_consulta = p.id_paciente
+     INNER JOIN public."DOCTOR" d ON c.doctor_consulta = d.id_doctor
+     INNER JOIN public."ESPECIALIDAD" e ON c.especialidad_consulta = e.id_especialidad
+     WHERE (p.ci_titular_paciente = $1 OR p.ci_beneficiario_paciente = $1)
+       AND c.fecha_eliminacion_consulta IS NULL
+     ORDER BY c.fecha_consulta DESC`,
+    [cedulaLimpia]
+  );
+}
