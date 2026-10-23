@@ -6,6 +6,10 @@ import type { Consulta, CrearConsultaInput } from '$lib/types/consulta';
  */
 export async function crearConsulta(datos: CrearConsultaInput): Promise<void> {
   const db = await getDb();
+  
+  // Asegurarnos de formatear las fechas o campos si fuera necesario
+  const fechaConsulta = datos.fecha_consulta?.trim() || null;
+
   await db.execute(
     `INSERT INTO public."CONSULTA" (
       especialidad_consulta,
@@ -14,13 +18,20 @@ export async function crearConsulta(datos: CrearConsultaInput): Promise<void> {
       doctor_consulta,
       fecha_consulta,
       diagnostico_consulta
-    ) VALUES ($1, $2, $3, $4, $5, $6)`,
+    ) VALUES (
+      $1, 
+      $2, 
+      (SELECT id_paciente FROM public."PACIENTE" WHERE ci_beneficiario_paciente = $3), 
+      $4, 
+      $5::DATE, 
+      $6
+    )`,
     [
       datos.especialidad_consulta,
       datos.usuario_consulta,
-      datos.paciente_consulta,
+      datos.ci_beneficiario_paciente, // <--- Aquí pasas la cédula en lugar del ID
       datos.doctor_consulta,
-      datos.fecha_consulta,
+      fechaConsulta,
       datos.diagnostico_consulta
     ]
   );

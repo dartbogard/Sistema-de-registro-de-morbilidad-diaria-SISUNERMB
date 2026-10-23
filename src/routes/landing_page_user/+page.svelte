@@ -71,7 +71,7 @@
         </a>
 
         <!-- Consulta Diagnóstico -->
-        <a href="#consulta-diagnostico">
+        <a href="/landing_page_user/crear-consulta">
           <li>
             <span class="material-symbols-outlined">medication</span>
             Consulta Diagnóstico
