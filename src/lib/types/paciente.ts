@@ -17,7 +17,10 @@ export interface Paciente{
 // Tipo para el formulario de registro de paciente
 export type CrearPacienteInput = Omit<
   Paciente,
-  'id_paciente' | 'fecha_creacion_paciente' | 'fecha_actualizacion_paciente' | 'fecha_eliminacion_paciente'
+  | 'id_paciente' 
+  | 'fecha_creacion_paciente' 
+  | 'fecha_actualización_paciente' 
+  | 'fecha_eliminacion_paciente'
 >;
 
 // Tipo para actualizar (todos los campos opcionales por si solo se edita uno)

@@ -8,5 +8,8 @@ export interface Especialidad {
 
 export type CrearEspecialidadInput = Omit<
   Especialidad,
-  'id_especialidad' | 'fecha_creacion_especialidad' | 'fecha_actualizacion_especialidad' | 'fecha_eliminacion_especialidad'
+  | 'id_especialidad' 
+  | 'fecha_creacion_especialidad' 
+  | 'fecha_actualización_especialidad' 
+  | 'fecha_eliminacion_especialidad'
 >;

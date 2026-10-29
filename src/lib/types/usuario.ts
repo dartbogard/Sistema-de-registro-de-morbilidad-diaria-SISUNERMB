@@ -10,5 +10,8 @@ export interface Usuario {
 
 export type CrearUsuarioInput = Omit<
   Usuario,
-  'id_usuario' | 'fecha_creacion_usuario' | 'fecha_actualizacion_usuario' | 'fecha_eliminacion_usuario'
+  | 'id_usuario' 
+  | 'fecha_creacion_usuario' 
+  | 'fecha_actualización_usuario' 
+  | 'fecha_eliminacion_usuario'
 >;
