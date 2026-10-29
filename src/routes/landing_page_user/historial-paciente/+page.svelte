@@ -4,8 +4,6 @@
   import { obtenerHistorialPorCedula } from '$lib/queries/consultas';
 
   let usuarioActual: { id: string; nombre: string; rol: string } | null = null;
-  let moduloActivo = 'inicio';
-
   let cedula = '';
   let historial: any[] = [];
   let mensaje = '';
@@ -43,10 +41,10 @@
 </script>
 
 <svelte:head>
-  <title>SISUNERMB - Panel Principal</title>
+  <title>SISUNERMB - Historial Paciente</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=calendar_clock,history,logout,medication,patient_list,person,search" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=calendar_clock,history,logout,medication,patient_list,person,search,info" />
 </svelte:head>
 
 <nav class="nav-landing-user">
@@ -69,107 +67,127 @@
     </div>
 
     <div class="div-modulos-wrapper">
-      <p>Modulos</p>
+      <p>Módulos</p>
       
       <ul class="ul-sidebar">
-        <a href="/landing_page_user/crear-paciente">
-          <li>
+        <li>
+          <a href="/landing_page_user/crear-paciente" class="btn-menu-item">
             <span class="material-symbols-outlined">person</span>
-            Registrar Paciente
-          </li>
-        </a>
+            <span>Registrar Paciente</span>
+          </a>
+        </li>
 
-        <button type="button" on:click={() => moduloActivo = 'consulta'} class="btn-menu-link">
-          <li>
+        <li>
+          <a href="/landing_page_user/crear-consulta" class="btn-menu-item">
             <span class="material-symbols-outlined">medication</span>
-            Consulta Diagnóstico
-          </li>
-        </button>
+            <span>Consulta Diagnóstico</span>
+          </a>
+        </li>
 
-        <button type="button" on:click={() => moduloActivo = 'historial'} class="btn-menu-link">
-          <li>
+        <li>
+          <a href="/landing_page_user/historial-paciente" class="btn-menu-item">
             <span class="material-symbols-outlined">history</span>
-            Historial Paciente
-          </li>
-        </button>
+            <span>Historial Paciente</span>
+          </a>
+        </li>
 
-        <a href="/landing_page_user/buscar-paciente">
-          <li>
+        <li>
+          <a href="/landing_page_user/reposos-suspensiones" class="btn-menu-item">
+            <span class="material-symbols-outlined">calendar_clock</span>
+            <span>Reposos/Suspensiones</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="/landing_page_user/reporte-morbilidad" class="btn-menu-item">
+            <span class="material-symbols-outlined">patient_list</span>
+            <span>Reporte Morbilidad</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="/landing_page_user/buscar-paciente" class="btn-menu-item">
             <span class="material-symbols-outlined">search</span>
-            Búsqueda Paciente
-          </li>
-        </a>
+            <span>Búsqueda Paciente</span>
+          </a>
+        </li>
 
-        <button type="button" on:click={cerrarSesion} class="btn-logout-link">
-          <li>
+        <li>
+          <button type="button" on:click={cerrarSesion} class="btn-menu-item btn-logout">
             <span class="material-symbols-outlined">logout</span>
-            Cerrar Sesión
-          </li>
-        </button>
+            <span>Cerrar Sesión</span>
+          </button>
+        </li>
       </ul>
     </div>
   </aside>
 
   <main class="main-landing-user">
-    {#if moduloActivo === 'inicio'}
-      <div class="contenido-modulo">
-        <h2>Seleccione un módulo en el menú lateral</h2>
-        <p>Utilice las opciones de la izquierda para navegar por el sistema.</p>
+    <div class="contenido-modulo">
+      <div class="header-seccion">
+        <h2>Historial Médico del Paciente</h2>
+        <p class="subtitulo">Consulte los registros de consultas, diagnósticos y especialistas por número de cédula.</p>
       </div>
-    {:else if moduloActivo === 'historial'}
-      <div class="contenido-modulo">
-        <h2>Historial de Paciente</h2>
-        
+      
+      <div class="buscador-card">
         <div class="buscador-container">
-          <input 
-            type="text" 
-            bind:value={cedula} 
-            placeholder="Ingrese la cédula del paciente..." 
-          />
-          <button type="button" on:click={buscarHistorial}>
-            Buscar
+          <div class="input-grupo">
+            <span class="material-symbols-outlined icono-input">search</span>
+            <input 
+              type="text" 
+              bind:value={cedula} 
+              placeholder="Ingrese la cédula del paciente..." 
+            />
+          </div>
+          <button type="button" on:click={buscarHistorial} class="btn-buscar">
+            Consultar Historial
           </button>
         </div>
+      </div>
 
-        {#if mensaje}
-          <p class="mensaje-info">{mensaje}</p>
-        {/if}
+      {#if mensaje}
+        <div class="alerta-mensaje">
+          <span class="material-symbols-outlined">info</span>
+          <p>{mensaje}</p>
+        </div>
+      {/if}
 
-        {#if historial.length > 0}
-          <div class="tabla-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Paciente</th>
-                  <th>Cédula</th>
-                  <th>Especialidad</th>
-                  <th>Doctor</th>
-                  <th>Diagnóstico</th>
-                </tr>
-              </thead>
-              <tbody>
-                {#each historial as item}
-                  <tr>
-                    <td>{item.fecha_consulta}</td>
-                    <td>{item.nombre_completo_paciente}</td>
-                    <td>{item.ci_titular_paciente || item.ci_beneficiario_paciente}</td>
-                    <td>{item.tipo_especialidad}</td>
-                    <td>{item.nombre_doctor}</td>
-                    <td>{item.diagnostico_consulta}</td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
+      {#if historial.length > 0}
+        <div class="tabla-container">
+          <div class="tabla-header-info">
+            <span>Registros encontrados: <strong>{historial.length}</strong></span>
           </div>
-        {/if}
-      </div>
-    {:else if moduloActivo === 'consulta'}
-      <div class="contenido-modulo">
-        <h2>Módulo de Consulta Diagnóstico</h2>
-        <p>Próximamente disponible aquí.</p>
-      </div>
-    {/if}
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Paciente</th>
+                <th>Cédula</th>
+                <th>Especialidad</th>
+                <th>Doctor</th>
+                <th>Diagnóstico</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each historial as item}
+                <tr>
+                  <td>
+                    <span class="badge-fecha">{item.fecha_consulta}</span>
+                  </td>
+                  <td class="texto-bold">{item.nombre_completo_paciente}</td>
+                  <td>{item.ci_titular_paciente || item.ci_beneficiario_paciente}</td>
+                  <td>
+                    <span class="badge-especialidad">{item.tipo_especialidad}</span>
+                  </td>
+                  <td>{item.nombre_doctor}</td>
+                  <td class="td-diagnostico">{item.diagnostico_consulta}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {/if}
+    </div>
   </main>
 
 </div>
@@ -186,14 +204,15 @@
   }
 
   :global(html, body) {
-    height: 100%;
+    height: 100vh;
     font-family: 'Google Sans', sans-serif;
     background-color: ghostwhite;
+    overflow: hidden;
   }
 
   :global(body) {
     display: grid;
-    grid-template-rows: 8% 1fr auto;
+    grid-template-rows: 60px 1fr 30px;
     grid-template-areas: 
       "header"
       "body"
@@ -207,47 +226,42 @@
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    height: 100%;
+    padding: 0 20px;
   }
 
   .div-inner-nav {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    width: 25%;
+    gap: 15px;
     height: 100%;
   }
 
   .image-wrapper {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    width: 50%;
     height: 100%;
   }
 
   .img-nav-login {    
     display: block;
-    width: 100%;
-    max-height: 100%;
+    height: 40px;
     object-fit: contain;
   }
 
   h1 {
     color: #fff;
-    text-align: right;
     font-family: 'Montserrat', sans-serif;
-    font-weight: 400;
-    letter-spacing: -1px;
-    padding-right: 20px;
+    font-size: 1.1rem;
+    font-weight: 500;
   }
 
   .div-grid-wrapper {
     grid-area: body;
     display: grid;
-    grid-template-columns: 20% 1fr;
+    grid-template-columns: 240px 1fr;
     grid-template-areas: "sidebar main";
     height: 100%;
+    overflow: hidden;
   }
 
   .sidebar-landing-user {
@@ -255,8 +269,6 @@
     background-color: #2c3e50;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
     height: 100%;
     color: #fff;
     overflow-y: auto;
@@ -264,34 +276,37 @@
 
   .div-img-sidebar-wrapper {
     width: 100%;
-    height: 25%;
+    height: 120px;
     background-position: center;
     background-size: cover;
     background-repeat: no-repeat;
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    padding-bottom: 15px;
+    padding-bottom: 12px;
+    flex-shrink: 0;
   }
 
   .div-img-sidebar-wrapper h3 {
     background-color: rgba(0, 0, 0, 0.6);
-    padding: 5px 15px;
+    padding: 4px 12px;
     border-radius: 4px;
-    font-size: 1.1rem;
+    font-size: 0.95rem;
   }
 
   .div-modulos-wrapper {
     width: 100%;
-    padding: 20px 0;
+    padding: 15px 0;
+    flex-grow: 1;
   }
 
   .div-modulos-wrapper p {
     padding-left: 20px;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     text-transform: uppercase;
     color: #bdc3c7;
     margin-bottom: 10px;
+    font-weight: 600;
   }
 
   .ul-sidebar {
@@ -299,99 +314,154 @@
     width: 100%;
   }
 
-  .ul-sidebar a,
-  .btn-menu-link,
-  .btn-logout-link {
+  .btn-menu-item {
     text-decoration: none;
     color: #ecf0f1;
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 12px;
     width: 100%;
+    padding: 12px 20px;
     background: none;
     border: none;
     font: inherit;
     cursor: pointer;
     text-align: left;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
-  .ul-sidebar li {
-    display: flex;
-    align-items: center;
-    padding: 12px 20px;
-    transition: background-color 0.3s ease;
-    gap: 12px;
-  }
-
-  .ul-sidebar li:hover {
+  .btn-menu-item:hover {
     background-color: #34495e;
     color: #3498db;
   }
 
+  .btn-menu-item span.material-symbols-outlined {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
   .main-landing-user {
     grid-area: main;
-    background-color: #f4f6f7;
-    padding: 25px;
+    background-color: #f1f5f9;
+    padding: 30px;
     overflow-y: auto;
+    height: 100%;
   }
 
-  /* ESTILOS DE LOS MÓDULOS INTERNOS */
+  .contenido-modulo {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .header-seccion {
+    margin-bottom: 20px;
+  }
+
   .contenido-modulo h2 {
-    font-size: 1.75rem;
-    color: #2c3e50;
-    margin-bottom: 1rem;
+    font-size: 1.8rem;
+    color: #1e293b;
     font-weight: 700;
+    font-family: 'Montserrat', sans-serif;
   }
 
-  .contenido-modulo p {
-    color: #555;
+  .subtitulo {
+    color: #64748b;
+    font-size: 0.95rem;
+    margin-top: 4px;
+  }
+
+  .buscador-card {
+    background: #ffffff;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    margin-bottom: 25px;
+    border: 1px solid #e2e8f0;
   }
 
   .buscador-container {
     display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
+    gap: 15px;
+    align-items: center;
+  }
+
+  .input-grupo {
+    position: relative;
+    flex-grow: 1;
+    max-width: 450px;
+  }
+
+  .icono-input {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 20px;
   }
 
   .buscador-container input {
-    padding: 10px 14px;
+    width: 100%;
+    padding: 12px 14px 12px 45px;
     border: 1px solid #cbd5e1;
     border-radius: 8px;
-    width: 320px;
     font-size: 1rem;
-    background-color: #fff;
+    background-color: #f8fafc;
+    color: #0f172a;
     outline: none;
+    transition: all 0.2s ease;
   }
 
   .buscador-container input:focus {
     border-color: #007aff;
-    box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+    background-color: #fff;
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
   }
 
-  .buscador-container button {
+  .btn-buscar {
     background-color: #007aff;
     color: white;
     border: none;
-    padding: 10px 20px;
+    padding: 12px 24px;
     border-radius: 8px;
     font-weight: 600;
+    font-size: 0.95rem;
     cursor: pointer;
     transition: background-color 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 122, 255, 0.2);
   }
 
-  .buscador-container button:hover {
-    background-color: #005bb5;
+  .btn-buscar:hover {
+    background-color: #0062cc;
   }
 
-  .mensaje-info {
-    margin-bottom: 15px;
+  .alerta-mensaje {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e40af;
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin-bottom: 20px;
     font-weight: 500;
-    color: #475569;
   }
 
   .tabla-container {
     background: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-    overflow-x: auto;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+  }
+
+  .tabla-header-info {
+    padding: 15px 20px;
+    background-color: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 0.9rem;
+    color: #475569;
   }
 
   table {
@@ -401,27 +471,62 @@
   }
 
   th {
-    background-color: #f1f5f9;
-    color: #334155;
-    padding: 12px 16px;
+    background-color: #f8fafc;
+    color: #475569;
+    padding: 14px 20px;
     font-weight: 600;
-    border-bottom: 1px solid #e2e8f0;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid #e2e8f0;
   }
 
   td {
-    padding: 12px 16px;
-    color: #1e293b;
-    border-bottom: 1px solid #e2e8f0;
+    padding: 16px 20px;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.95rem;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
   }
 
   tr:hover td {
     background-color: #f8fafc;
   }
 
+  .texto-bold {
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .badge-fecha {
+    background-color: #f1f5f9;
+    color: #475569;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+
+  .badge-especialidad {
+    background-color: #e0f2fe;
+    color: #0369a1;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .td-diagnostico {
+    max-width: 300px;
+    color: #475569;
+  }
+
   .footer-landing-user {
     grid-area: footer;
     background-color: #007aff;
-    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
