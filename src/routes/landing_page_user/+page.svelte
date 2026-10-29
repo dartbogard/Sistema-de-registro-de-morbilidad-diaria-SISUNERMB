@@ -110,6 +110,15 @@
           </li>
         </a>
 
+        <!-- modulo creación -->
+        <a href="landing_page_user/modulo-creacion">
+          <li>
+            <span class="material-symbols-outlined">search</span>
+            Módulo Creación Administrativo
+          </li>
+        </a>
+
+
         <!-- Cerrar Sesion -->
         <button type="button" on:click={cerrarSesion} class="btn-logout-link">
           <li>
