@@ -1,42 +1,36 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { crearPaciente } from '$lib/queries/pacientes';
+  import { crearDoctor } from '$lib/queries/doctores';
   import { crearEspecialidad } from '$lib/queries/especialidades';
-  import { crearUsuario } from '$lib/queries/usuarios'; // Asegúrate de tener o crear esta función
-  import type { CrearPacienteInput } from '$lib/types/paciente';
+  import { crearUsuario } from '$lib/queries/usuarios';
 
   // Datos de la sesión
   let usuarioActual: { id: string; nombre: string; rol: string } | null = null;
 
-  // Control de la pestaña activa ('paciente' | 'especialidad' | 'usuario')
-  let tabActiva: 'paciente' | 'especialidad' | 'usuario' = 'paciente';
+  // Control de la pestaña activa ('doctor' | 'especialidad' | 'usuario')
+  let tabActiva: 'doctor' | 'especialidad' | 'usuario' = 'doctor';
 
   // Mensajes de respuesta
   let mensajeExito = '';
   let mensajeError = '';
 
-  // Formulario de Paciente
-  let formPaciente: CrearPacienteInput = {
-    nombre_completo_paciente: '',
-    nombre_titular_paciente: '',
-    ci_titular_paciente: '',
-    ci_beneficiario_paciente: '',
-    fecha_nacimiento_paciente: '',
-    sexo_paciente: 'M',
-    tipo_personal_paciente: 'DOCENTE',
-    categoria_trabajador_paciente: 'ACTIVO',
-    parentesco_paciente: 'TITULAR'
+  // Formulario de Doctor
+  let formDoctor = {
+    nombre_doctor: '',
+    apellido_doctor: '',
+    ci_profesional_doctor: '',
+    ci_doctor: ''
   };
 
   // Formulario de Especialidad
   let tipoEspecialidad = '';
 
-  // Formulario de Usuario (ajustado a tu tabla USUARIO del ERD)
+  // Formulario de Usuario
   let formUsuario = {
     nombre_usuario: '',
     password_usuario: '',
-    rol_usuario: 'MEDICO' // o ADMINISTRADOR, etc.
+    rol_usuario: 'MEDICO'
   };
 
   onMount(() => {
@@ -48,26 +42,21 @@
     }
   });
 
-  async function guardarPaciente() {
+  async function guardarDoctor() {
     mensajeExito = '';
     mensajeError = '';
     try {
-      await crearPaciente(formPaciente);
-      mensajeExito = '¡Paciente registrado exitosamente en la base de datos!';
-      formPaciente = {
-        nombre_completo_paciente: '',
-        nombre_titular_paciente: '',
-        ci_titular_paciente: '',
-        ci_beneficiario_paciente: '',
-        fecha_nacimiento_paciente: '',
-        sexo_paciente: 'M',
-        tipo_personal_paciente: 'DOCENTE',
-        categoria_trabajador_paciente: 'ACTIVO',
-        parentesco_paciente: 'TITULAR'
+      await crearDoctor(formDoctor);
+      mensajeExito = '¡Doctor registrado exitosamente en la base de datos!';
+      formDoctor = {
+        nombre_doctor: '',
+        apellido_doctor: '',
+        ci_profesional_doctor: '',
+        ci_doctor: ''
       };
     } catch (error: any) {
-      console.error('Error al registrar paciente:', error);
-      mensajeError = `Error al registrar paciente: ${error.message || error}`;
+      console.error('Error al registrar doctor:', error);
+      mensajeError = `Error al registrar doctor: ${error.message || error}`;
     }
   }
 
@@ -138,6 +127,13 @@
     <div class="div-modulos-wrapper">
       <p>Modulos</p>
       <ul class="ul-sidebar">
+        <!-- Opcional: tu enlace de registro de pacientes que ya tienes aparte -->
+        <a href="/landing_page_user/crear-paciente">
+          <li>
+            <span class="material-symbols-outlined">person</span>
+            Registrar Paciente
+          </li>
+        </a>
         <a href="/landing_page_user/modulo-creacion">
           <li style="background-color: #34495e; color: #3498db;">
             <span class="material-symbols-outlined">add_box</span>
@@ -190,11 +186,11 @@
       <!-- Pestañas de Selección -->
       <div class="tabs-header">
         <button 
-          class="tab-btn {tabActiva === 'paciente' ? 'active' : ''}" 
-          on:click={() => { tabActiva = 'paciente'; mensajeExito = ''; mensajeError = ''; }}
+          class="tab-btn {tabActiva === 'doctor' ? 'active' : ''}" 
+          on:click={() => { tabActiva = 'doctor'; mensajeExito = ''; mensajeError = ''; }}
         >
-          <span class="material-symbols-outlined">person_add</span>
-          Paciente
+          <span class="material-symbols-outlined">local_hospital</span>
+          Doctor
         </button>
         <button 
           class="tab-btn {tabActiva === 'especialidad' ? 'active' : ''}" 
@@ -219,73 +215,32 @@
         <div class="alert error">{mensajeError}</div>
       {/if}
 
-      <!-- FORMULARIO PACIENTE -->
-      {#if tabActiva === 'paciente'}
-        <h2>Registrar Nuevo Paciente</h2>
-        <form on:submit|preventDefault={guardarPaciente} class="form-grid">
-          <div class="form-group full-width">
-            <label for="nombre_paciente">Nombre Completo del Paciente</label>
-            <input type="text" id="nombre_paciente" bind:value={formPaciente.nombre_completo_paciente} required placeholder="Ej. Juan Pérez" />
+      <!-- FORMULARIO DOCTOR -->
+      {#if tabActiva === 'doctor'}
+        <h2>Registrar Nuevo Doctor</h2>
+        <form on:submit|preventDefault={guardarDoctor} class="form-grid">
+          <div class="form-group">
+            <label for="nombre_doctor">Nombre del Doctor</label>
+            <input type="text" id="nombre_doctor" bind:value={formDoctor.nombre_doctor} required placeholder="Ej. Carlos" />
           </div>
 
           <div class="form-group">
-            <label for="ci_beneficiario">Cédula del Beneficiario</label>
-            <input type="text" id="ci_beneficiario" bind:value={formPaciente.ci_beneficiario_paciente} placeholder="Ej. V-12345678" />
+            <label for="apellido_doctor">Apellido del Doctor</label>
+            <input type="text" id="apellido_doctor" bind:value={formDoctor.apellido_doctor} required placeholder="Ej. Mendoza" />
           </div>
 
           <div class="form-group">
-            <label for="nombre_titular">Nombre del Titular</label>
-            <input type="text" id="nombre_titular" bind:value={formPaciente.nombre_titular_paciente} required placeholder="Ej. Pedro Pérez" />
+            <label for="ci_doctor">Cédula de Identidad</label>
+            <input type="text" id="ci_doctor" bind:value={formDoctor.ci_doctor} required placeholder="Ej. V-12345678" />
           </div>
 
           <div class="form-group">
-            <label for="ci_titular">Cédula del Titular</label>
-            <input type="text" id="ci_titular" bind:value={formPaciente.ci_titular_paciente} placeholder="Ej. V-87654321" />
-          </div>
-
-          <div class="form-group">
-            <label for="fecha_nac">Fecha de Nacimiento</label>
-            <input type="date" id="fecha_nac" bind:value={formPaciente.fecha_nacimiento_paciente} required />
-          </div>
-
-          <div class="form-group">
-            <label for="sexo">Sexo</label>
-            <select id="sexo" bind:value={formPaciente.sexo_paciente}>
-              <option value="M">Masculino</option>
-              <option value="F">Femenino</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="tipo_personal">Tipo de Personal</label>
-            <select id="tipo_personal" bind:value={formPaciente.tipo_personal_paciente}>
-              <option value="DOCENTE">DOCENTE</option>
-              <option value="ADMINISTRATIVO">ADMINISTRATIVO</option>
-              <option value="OBRERO">OBRERO</option>
-              <option value="ESTUDIANTE">ESTUDIANTE</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="categoria">Categoría</label>
-            <select id="categoria" bind:value={formPaciente.categoria_trabajador_paciente}>
-              <option value="ACTIVO">ACTIVO</option>
-              <option value="JUBILADO">JUBILADO</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="parentesco">Parentesco</label>
-            <select id="parentesco" bind:value={formPaciente.parentesco_paciente}>
-              <option value="TITULAR">TITULAR</option>
-              <option value="HIJO/A">HIJO/A</option>
-              <option value="ESPOSO/A">ESPOSO/A</option>
-              <option value="MADRE/PADRE">MADRE/PADRE</option>
-            </select>
+            <label for="ci_profesional">Cédula Profesional (MPPS / Colegiado)</label>
+            <input type="text" id="ci_profesional" bind:value={formDoctor.ci_profesional_doctor} required placeholder="Ej. MPPS-12345" />
           </div>
 
           <div class="form-group full-width">
-            <button type="submit" class="btn-submit">Guardar Paciente</button>
+            <button type="submit" class="btn-submit">Guardar Doctor</button>
           </div>
         </form>
       {/if}
@@ -309,7 +264,7 @@
         <form on:submit|preventDefault={guardarUsuario} class="form-grid">
           <div class="form-group full-width">
             <label for="nombre_usr">Nombre de Usuario (Login)</label>
-            <input type="text" id="nombre_usr" bind:value={formUsuario.nombre_usuario} required placeholder="Ej. jperez" />
+            <input type="text" id="nombre_usr" bind:value={formUsuario.nombre_usuario} required placeholder="Ej. cmendoza" />
           </div>
 
           <div class="form-group">
@@ -320,9 +275,8 @@
           <div class="form-group">
             <label for="rol_usr">Rol del Usuario</label>
             <select id="rol_usr" bind:value={formUsuario.rol_usuario}>
-              <option value="MEDICO">MEDICO</option>
               <option value="ADMINISTRADOR">ADMINISTRADOR</option>
-              <option value="ASISTENTE">ASISTENTE</option>
+              <option value="RECEPCIONISTA">RECEPCIONISTA</option>
             </select>
           </div>
 
