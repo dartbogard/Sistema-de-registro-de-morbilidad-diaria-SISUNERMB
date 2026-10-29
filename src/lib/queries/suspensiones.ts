@@ -38,8 +38,6 @@ export async function obtenerSuspensionesActivas() {
   );
 }
 
-
-
 export interface AlertaMorbilidadPaciente {
   ci_beneficiario_paciente: string;
   nombre_completo_paciente: string;
@@ -53,13 +51,11 @@ export async function obtenerAlertasMorbilidad(
 ): Promise<AlertaMorbilidadPaciente[]> {
   const db = await getDb();
 
-  // Consulta analítica PostgreSQL ajustada exactamente al DER
   const query = `
     SELECT 
         p.ci_beneficiario_paciente,
         p.nombre_completo_paciente,
         e.tipo_especialidad,
-        -- Cálculo de la diferencia de días entre la fecha final e inicio de la suspensión
         SUM(s.fecha_final_suspension - s.fecha_inicio_suspension) AS total_dias_suspendido
     FROM public."SUSPENSION" s
     INNER JOIN public."CONSULTA" c 
@@ -70,7 +66,6 @@ export async function obtenerAlertasMorbilidad(
         ON s.especialidad_suspension = e.id_especialidad
     WHERE 
         s.fecha_inicio_suspension >= NOW() - CAST($1 AS INTERVAL)
-        -- Excluir registros eliminados por Soft Delete
         AND s.fecha_eliminacion_suspension IS NULL
         AND c.fecha_eliminacion_consulta IS NULL
         AND p.fecha_eliminacion_paciente IS NULL
