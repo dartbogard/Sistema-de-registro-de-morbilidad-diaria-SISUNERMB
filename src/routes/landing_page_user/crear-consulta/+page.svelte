@@ -1,26 +1,26 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { crearConsulta } from '$lib/queries/consultas'; // Ajusta la ruta a tu archivo de queries
+  import { crearConsulta, obtenerEspecialidades, obtenerDoctoresPorEspecialidad } from '$lib/queries/consultas';
   import { type CrearConsultaInput } from '$lib/types/consulta';
-  // Variable para almacenar los datos del usuario autenticado
+
   let usuarioActual: { id: number; nombre: string; rol: string } | null = null;
 
-  // Estado del formulario de consulta adaptado con la cédula del beneficiario
   let formulario: CrearConsultaInput = {
     especialidad_consulta: '',
-    usuario_consulta: 1, // Se puede asignar dinámicamente según usuarioActual.id si aplica
+    usuario_consulta: 1,
     ci_beneficiario_paciente: '',
-    doctor_consulta: 1, // ID o valor numérico del doctor según tu esquema
+    doctor_consulta: 1,
     fecha_consulta: '',
     diagnostico_consulta: ''
   };
 
+  let especialidades: any[] = [];
+  let doctores: any[] = [];
   let mensajeExito = '';
   let mensajeError = '';
 
-  onMount(() => {
-    // Recuperar los datos de sesión guardados durante el Login
+  onMount(async () => {
     const sesion = localStorage.getItem('usuario_sesion');
     if (sesion) {
       usuarioActual = JSON.parse(sesion);
@@ -28,10 +28,25 @@
         formulario.usuario_consulta = Number(usuarioActual.id) || 1;
       }
     } else {
-      // Si no hay sesión activa, redirigir al Login
       goto('/');
     }
+
+    try {
+      especialidades = (await obtenerEspecialidades()) as any[];
+      doctores = (await obtenerDoctoresPorEspecialidad()) as any[];
+    } catch (error) {
+      console.error('Error cargando catálogos:', error);
+    }
   });
+
+  async function alCambiarEspecialidad() {
+    formulario.doctor_consulta = 1; // Resetear doctor
+    if (formulario.especialidad_consulta) {
+      doctores = (await obtenerDoctoresPorEspecialidad(Number(formulario.especialidad_consulta))) as any[];
+    } else {
+      doctores = (await obtenerDoctoresPorEspecialidad()) as any[];
+    }
+  }
 
   async function manejarRegistroConsulta(event: Event) {
     event.preventDefault();
@@ -41,11 +56,11 @@
     try {
       await crearConsulta(formulario);
       mensajeExito = '¡Consulta registrada exitosamente!';
-      // Limpiar formulario o mantener según prefieras
       formulario.ci_beneficiario_paciente = '';
       formulario.diagnostico_consulta = '';
       formulario.especialidad_consulta = '';
       formulario.fecha_consulta = '';
+      formulario.doctor_consulta = 1;
     } catch (error: any) {
       console.error('Error al registrar consulta:', error);
       mensajeError = `Error al registrar consulta: ${error.message || error}`;
@@ -58,17 +73,13 @@
   }
 </script>
 
-<!-- Inyección de metadatos, fuentes e iconos en el <head> -->
 <svelte:head>
   <title>SISUNERMB - Registrar Consulta</title>
-  <!-- Links de fuentes -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-  <!-- Links de iconos -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
 </svelte:head>
 
-<!-- Header de la pagina -->
 <nav class="nav-landing-user">
   <div class="div-inner-nav">
     <a href="https://unermb.web.ve" class="image-wrapper">
@@ -81,21 +92,17 @@
   <h1>BIENVENIDO AL REGISTRO MEDICO SISUNERMB</h1>
 </nav>
 
-<!-- Div Grid Contenedor de Sidebar y Secciones -->
 <div class="div-grid-wrapper">
   
-  <!-- Sidebar lateral -->
   <aside class="sidebar-landing-user">
     <div class="div-img-sidebar-wrapper" style="background-image: url('/background.jpg');">
       <h3>{usuarioActual ? usuarioActual.nombre : 'Cargando...'}</h3>
     </div>
 
-    <!-- Modulos interactivos -->
     <div class="div-modulos-wrapper">
       <p>Modulos</p>
       
       <ul class="ul-sidebar">
-        <!-- Registrar Paciente -->
         <a href="/landing_page_user/crear-paciente">
           <li>
             <span class="material-symbols-outlined">person</span>
@@ -103,7 +110,6 @@
           </li>
         </a>
 
-        <!-- Consulta Diagnóstico (Activo actual) -->
         <a href="/landing_page_user/crear-consulta">
           <li style="background-color: #34495e; color: #3498db;">
             <span class="material-symbols-outlined">medication</span>
@@ -111,7 +117,6 @@
           </li>
         </a>
 
-        <!-- Historial Paciente -->
         <a href="/landing_page_user/historial-paciente">
           <li>
             <span class="material-symbols-outlined">history</span>
@@ -119,23 +124,20 @@
           </li>
         </a>
 
-        <!-- Reposos/Suspensiones -->
-        <a href="#reposos-suspensiones">
+        <a href="/landing_page_user/reposos-suspensiones">
           <li>
             <span class="material-symbols-outlined">calendar_clock</span>
             Reposos/Suspensiones
           </li>
         </a>
 
-        <!-- Reporte Morbilidad -->
-        <a href="#reporte-morbilidad">
+        <a href="/landing_page_user/reporte-morbilidad">
           <li>
             <span class="material-symbols-outlined">patient_list</span>
             Reporte Morbilidad
           </li>
         </a>
 
-        <!-- Busqueda Paciente -->
         <a href="/landing_page_user/buscar-paciente">
           <li>
             <span class="material-symbols-outlined">search</span>
@@ -143,7 +145,6 @@
           </li>
         </a>
 
-        <!-- Cerrar Sesion -->
         <button type="button" on:click={cerrarSesion} class="btn-logout-link">
           <li>
             <span class="material-symbols-outlined">logout</span>
@@ -154,7 +155,6 @@
     </div>
   </aside>
 
-  <!-- Seccion Principal -->
   <main class="main-landing-user">
     <div class="form-container">
       <h2>Registro de Nueva Consulta Médica</h2>
@@ -180,23 +180,31 @@
 
         <div class="form-group">
           <label for="especialidad">Especialidad</label>
-          <input 
-            type="text" 
+          <select 
             id="especialidad" 
             bind:value={formulario.especialidad_consulta} 
-            placeholder="Ej: Medicina General" 
-            required 
-          />
+            on:change={alCambiarEspecialidad}
+            required
+          >
+            <option value="">-- Seleccione una especialidad --</option>
+            {#each especialidades as esp}
+              <option value={esp.id_especialidad}>{esp.tipo_especialidad}</option>
+            {/each}
+          </select>
         </div>
 
         <div class="form-group">
-          <label for="doctor">ID Doctor</label>
-          <input 
-            type="number" 
+          <label for="doctor">Doctor Tratante</label>
+          <select 
             id="doctor" 
             bind:value={formulario.doctor_consulta} 
-            required 
-          />
+            required
+          >
+            <option value="">-- Seleccione un doctor --</option>
+            {#each doctores as doc}
+              <option value={doc.id_doctor}>{doc.nombre_completo}</option>
+            {/each}
+          </select>
         </div>
 
         <div class="form-group">
@@ -227,13 +235,11 @@
 
 </div>
 
-<!-- Footer -->
 <footer class="footer-landing-user">
   <p>Créditos: Miguel Contreras, Arturo Pérez, Omar Oberto Big 2026</p>
 </footer>
 
 <style>
-  /* CSS GENERALES */
   :global(*) {
     margin: 0;
     padding: 0;
@@ -255,7 +261,6 @@
       "footer";
   }
 
-  /* HEADER */
   nav {
     background-color: #007aff;
     grid-area: header;    
@@ -298,7 +303,6 @@
     padding-right: 20px;
   }
 
-  /* DIV GRID WRAPPER DE SIDEBAR Y MAIN */
   .div-grid-wrapper {
     grid-area: body;
     display: grid;
@@ -307,7 +311,6 @@
     height: 100%;
   }
 
-  /* SIDEBAR */
   .sidebar-landing-user {
     grid-area: sidebar;
     background-color: #2c3e50;
@@ -382,7 +385,6 @@
     color: #3498db;
   }
 
-  /* MAIN & FORMULARIO */
   .main-landing-user {
     grid-area: main;
     background-color: #f4f6f7;
@@ -418,15 +420,18 @@
   }
 
   .form-group input,
+  .form-group select,
   .form-group textarea {
     padding: 10px;
     border: 1px solid #dcdde1;
     border-radius: 4px;
     font-size: 1rem;
     font-family: 'Google Sans', sans-serif;
+    background-color: #fff;
   }
 
   .form-group input:focus,
+  .form-group select:focus,
   .form-group textarea:focus {
     outline: none;
     border-color: #007aff;
@@ -467,7 +472,6 @@
     border: 1px solid #f5c6cb;
   }
 
-  /* FOOTER */
   .footer-landing-user {
     grid-area: footer;
     background-color: #007aff;

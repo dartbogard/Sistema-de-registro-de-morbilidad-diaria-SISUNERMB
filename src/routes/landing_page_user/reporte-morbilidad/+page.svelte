@@ -1,12 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { obtenerReporteMorbilidad } from '$lib/queries/consultas';
 
   let usuarioActual: { id: string; nombre: string; rol: string } | null = null;
   let fechaInicio = '';
   let fechaFin = '';
   let reporteMorbilidad: any[] = [];
   let mensaje = '';
+  let cargando = false;
 
   onMount(() => {
     const sesion = localStorage.getItem('usuario_sesion');
@@ -29,7 +31,21 @@
       return;
     }
 
-    mensaje = 'Módulo enlazado. Aquí se mostrarán los datos de morbilidad según las fechas.';
+    cargando = true;
+    mensaje = '';
+
+    try {
+      reporteMorbilidad = (await obtenerReporteMorbilidad(fechaInicio, fechaFin)) as any[];
+      
+      if (reporteMorbilidad.length === 0) {
+        mensaje = 'No se encontraron registros de morbilidad para el rango de fechas seleccionado.';
+      }
+    } catch (error) {
+      console.error('Error al generar el reporte de morbilidad:', error);
+      mensaje = 'Ocurrió un error al consultar la base de datos.';
+    } finally {
+      cargando = false;
+    }
   }
 </script>
 
@@ -132,8 +148,8 @@
             <span>Hasta:</span>
             <input type="date" bind:value={fechaFin} />
           </label>
-          <button type="button" on:click={generarReporte} class="btn-buscar">
-            Generar Reporte
+          <button type="button" on:click={generarReporte} disabled={cargando} class="btn-buscar">
+            {cargando ? 'Generando...' : 'Generar Reporte'}
           </button>
         </div>
       </div>
@@ -148,7 +164,7 @@
       {#if reporteMorbilidad.length > 0}
         <div class="tabla-container">
           <div class="tabla-header-info">
-            <span>Registros de morbilidad: <strong>{reporteMorbilidad.length}</strong></span>
+            <span>Registros de morbilidad encontrados: <strong>{reporteMorbilidad.length}</strong></span>
           </div>
           <table>
             <thead>
@@ -255,6 +271,8 @@
     height: 100%;
     color: #fff;
     overflow-y: auto;
+    position: relative;
+    z-index: 50;
   }
 
   .div-img-sidebar-wrapper {
@@ -408,6 +426,11 @@
 
   .btn-buscar:hover {
     background-color: #0062cc;
+  }
+
+  .btn-buscar:disabled {
+    background-color: #94a3b8;
+    cursor: not-allowed;
   }
 
   .alerta-mensaje {
