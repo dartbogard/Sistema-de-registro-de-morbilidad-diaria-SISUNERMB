@@ -29,55 +29,38 @@ export async function obtenerSuspensionesActivas() {
       s.fecha_inicio_suspension,
       s.fecha_final_suspension,
       d.nombre_doctor || ' ' || d.apellido_doctor AS doctor,
-      e.tipo_especialidad
+      e.tipo_especialidad,
+      p.ci_beneficiario_paciente,
+      p.nombre_completo_paciente
      FROM public."SUSPENSION" s
      INNER JOIN public."DOCTOR" d ON s.doctor_suspension = d.id_doctor
      INNER JOIN public."ESPECIALIDAD" e ON s.especialidad_suspension = e.id_especialidad
+     LEFT JOIN public."CONSULTA" c ON s.consulta_suspension = c.id_consulta
+     LEFT JOIN public."PACIENTE" p ON c.paciente_consulta = p.id_paciente
      WHERE s.fecha_eliminacion_suspension IS NULL
        AND CURRENT_DATE BETWEEN s.fecha_inicio_suspension AND s.fecha_final_suspension`
   );
 }
 
-export interface AlertaMorbilidadPaciente {
-  ci_beneficiario_paciente: string;
-  nombre_completo_paciente: string;
-  tipo_especialidad: string;
-  total_dias_suspendido: number;
-}
-
-export async function obtenerAlertasMorbilidad(
-  limiteDias: number = 15,
-  intervaloTexto: string = '30 days'
-): Promise<AlertaMorbilidadPaciente[]> {
+export async function obtenerSuspensionesPorCedula(cedula: string) {
   const db = await getDb();
-
-  const query = `
-    SELECT 
-        p.ci_beneficiario_paciente,
-        p.nombre_completo_paciente,
-        e.tipo_especialidad,
-        SUM(s.fecha_final_suspension - s.fecha_inicio_suspension) AS total_dias_suspendido
-    FROM public."SUSPENSION" s
-    INNER JOIN public."CONSULTA" c 
-        ON s.consulta_suspension = c.id_consulta
-    INNER JOIN public."PACIENTE" p 
-        ON c.paciente_consulta = p.id_paciente
-    INNER JOIN public."ESPECIALIDAD" e 
-        ON s.especialidad_suspension = e.id_especialidad
-    WHERE 
-        s.fecha_inicio_suspension >= NOW() - CAST($1 AS INTERVAL)
-        AND s.fecha_eliminacion_suspension IS NULL
-        AND c.fecha_eliminacion_consulta IS NULL
-        AND p.fecha_eliminacion_paciente IS NULL
-    GROUP BY 
-        p.ci_beneficiario_paciente, 
-        p.nombre_completo_paciente, 
-        e.tipo_especialidad
-    HAVING 
-        SUM(s.fecha_final_suspension - s.fecha_inicio_suspension) > $2
-    ORDER BY 
-        total_dias_suspendido DESC;
-  `;
-
-  return await db.select<AlertaMorbilidadPaciente[]>(query, [intervaloTexto, limiteDias]);
+  const cedulaLimpiada = String(cedula).trim();
+  return await db.select(
+    `SELECT 
+      s.id_suspension,
+      s.fecha_inicio_suspension,
+      s.fecha_final_suspension,
+      d.nombre_doctor || ' ' || d.apellido_doctor AS doctor,
+      e.tipo_especialidad,
+      p.ci_beneficiario_paciente,
+      p.nombre_completo_paciente
+     FROM public."SUSPENSION" s
+     INNER JOIN public."DOCTOR" d ON s.doctor_suspension = d.id_doctor
+     INNER JOIN public."ESPECIALIDAD" e ON s.especialidad_suspension = e.id_especialidad
+     INNER JOIN public."CONSULTA" c ON s.consulta_suspension = c.id_consulta
+     INNER JOIN public."PACIENTE" p ON c.paciente_consulta = p.id_paciente
+     WHERE s.fecha_eliminacion_suspension IS NULL
+       AND (TRIM(CAST(p.ci_beneficiario_paciente AS TEXT)) = TRIM($1) OR TRIM(CAST(p.ci_titular_paciente AS TEXT)) = TRIM($1))`,
+    [cedulaLimpiada]
+  );
 }

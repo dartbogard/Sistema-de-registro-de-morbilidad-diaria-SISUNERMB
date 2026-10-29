@@ -1,18 +1,26 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { crearConsulta, obtenerEspecialidades, obtenerDoctoresPorEspecialidad } from '$lib/queries/consultas';
   import { type CrearConsultaInput } from '$lib/types/consulta';
+  import { 
+    crearConsulta, 
+    obtenerEspecialidades, 
+    obtenerDoctoresPorEspecialidad 
+  } from '$lib/queries/consultas';
 
   let usuarioActual: { id: number; nombre: string; rol: string } | null = null;
 
-  let formulario: CrearConsultaInput = {
+  // Extendemos la interfaz o campos para soportar reposo si el backend lo requiere
+  let formulario: any = {
     especialidad_consulta: '',
     usuario_consulta: 1,
     ci_beneficiario_paciente: '',
     doctor_consulta: 1,
     fecha_consulta: '',
-    diagnostico_consulta: ''
+    diagnostico_consulta: '',
+    tiene_reposo: false,
+    fecha_inicio_suspension: '',
+    fecha_final_suspension: ''
   };
 
   let especialidades: any[] = [];
@@ -55,12 +63,15 @@
 
     try {
       await crearConsulta(formulario);
-      mensajeExito = '¡Consulta registrada exitosamente!';
+      mensajeExito = '¡Consulta y reposo registrados exitosamente!';
       formulario.ci_beneficiario_paciente = '';
       formulario.diagnostico_consulta = '';
       formulario.especialidad_consulta = '';
       formulario.fecha_consulta = '';
       formulario.doctor_consulta = 1;
+      formulario.tiene_reposo = false;
+      formulario.fecha_inicio_suspension = '';
+      formulario.fecha_final_suspension = '';
     } catch (error: any) {
       console.error('Error al registrar consulta:', error);
       mensajeError = `Error al registrar consulta: ${error.message || error}`;
@@ -228,7 +239,44 @@
           ></textarea>
         </div>
 
-        <button type="submit" class="btn-submit">Guardar Consulta</button>
+        <!-- SECCIÓN DE REPOSO MÉDICO -->
+        <div class="form-group" style="background-color: #f9f9f9; padding: 15px; border-radius: 4px; border: 1px solid #e1e1e1;">
+          <label class="checkbox-label" style="display: flex; align-items: center; cursor: pointer; gap: 10px; font-weight: bold; color: #2c3e50;">
+            <input 
+              type="checkbox" 
+              bind:checked={formulario.tiene_reposo} 
+              style="width: 18px; height: 18px;"
+            />
+            ¿Aplica Reposo Médico?
+          </label>
+
+          {#if formulario.tiene_reposo}
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; border-top: 1px solid #ddd; padding-top: 15px;">
+              <div>
+                <label for="fecha_inicio" style="font-size: 0.9rem; color: #555;">Fecha Inicio Reposo</label>
+                <input 
+                  type="date" 
+                  id="fecha_inicio" 
+                  bind:value={formulario.fecha_inicio_suspension} 
+                  required={formulario.tiene_reposo}
+                  style="width: 100%; padding: 8px; border: 1px solid #dcdde1; border-radius: 4px; background: #fff;"
+                />
+              </div>
+              <div>
+                <label for="fecha_fin" style="font-size: 0.9rem; color: #555;">Fecha Fin Reposo</label>
+                <input 
+                  type="date" 
+                  id="fecha_fin" 
+                  bind:value={formulario.fecha_final_suspension} 
+                  required={formulario.tiene_reposo}
+                  style="width: 100%; padding: 8px; border: 1px solid #dcdde1; border-radius: 4px; background: #fff;"
+                />
+              </div>
+            </div>
+          {/if}
+        </div>
+
+        <button type="submit" class="btn-submit">Guardar Consulta y Reposo</button>
       </form>
     </div>
   </main>
@@ -250,6 +298,7 @@
     height: 100%;
     font-family: 'Google Sans', sans-serif;
     background-color: ghostwhite;
+    overflow: hidden; /* Evita doble barra en el body general */
   }
 
   :global(body) {
@@ -309,6 +358,7 @@
     grid-template-columns: 20% 1fr;
     grid-template-areas: "sidebar main";
     height: 100%;
+    overflow: hidden;
   }
 
   .sidebar-landing-user {
@@ -320,6 +370,7 @@
     justify-content: flex-start;
     height: 100%;
     color: #fff;
+    overflow-y: auto;
   }
 
   .div-img-sidebar-wrapper {
@@ -332,6 +383,7 @@
     align-items: flex-end;
     justify-content: center;
     padding-bottom: 15px;
+    flex-shrink: 0;
   }
 
   .div-img-sidebar-wrapper h3 {
@@ -389,7 +441,8 @@
     grid-area: main;
     background-color: #f4f6f7;
     padding: 30px;
-    overflow-y: auto;
+    overflow-y: auto !important; /* Fuerza la barra de desplazamiento vertical */
+    height: 100%;
   }
 
   .form-container {
@@ -398,7 +451,7 @@
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.05);
     max-width: 700px;
-    margin: 0 auto;
+    margin: 0 auto 60px auto; /* Margen abajo para que el botón respire y no quede pegado al footer */
   }
 
   .form-container h2 {
@@ -447,6 +500,7 @@
     cursor: pointer;
     width: 100%;
     transition: background-color 0.2s ease;
+    margin-top: 10px;
   }
 
   .btn-submit:hover {

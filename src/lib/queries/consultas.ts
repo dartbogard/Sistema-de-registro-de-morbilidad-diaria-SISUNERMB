@@ -1,16 +1,20 @@
 import { getDb } from '$lib/database';
-import type { Consulta, CrearConsultaInput } from '$lib/types/consulta';
+import type { CrearConsultaInput } from '$lib/types/consulta';
 
-/**
- * Registra una consulta médica vinculando paciente, doctor, especialidad y usuario.
- */
-export async function crearConsulta(datos: CrearConsultaInput): Promise<void> {
+interface CrearConsultaConReposoInput extends CrearConsultaInput {
+  tiene_reposo?: boolean;
+  fecha_inicio_suspension?: string;
+  fecha_final_suspension?: string;
+}
+
+export async function crearConsulta(datos: CrearConsultaConReposoInput): Promise<void> {
   const db = await getDb();
   
-  // Asegurarnos de formatear las fechas o campos si fuera necesario
   const fechaConsulta = datos.fecha_consulta?.trim() || null;
+  const cedulaPaciente = String(datos.ci_beneficiario_paciente).trim();
 
-  await db.execute(
+  // 1. Insertamos la consulta y pedimos que nos devuelva el id_consulta generado
+  const resultadoConsulta = await db.select<{ id_consulta: string }[]>(
     `INSERT INTO public."CONSULTA" (
       especialidad_consulta,
       usuario_consulta,
@@ -19,22 +23,51 @@ export async function crearConsulta(datos: CrearConsultaInput): Promise<void> {
       fecha_consulta,
       diagnostico_consulta
     ) VALUES (
-      $1, 
-      $2, 
-      (SELECT id_paciente FROM public."PACIENTE" WHERE ci_beneficiario_paciente = $3), 
-      $4, 
+      $1::uuid, 
+      (SELECT id_usuario FROM public."USUARIO" LIMIT 1), 
+      (SELECT id_paciente FROM public."PACIENTE" WHERE TRIM(CAST(ci_beneficiario_paciente AS TEXT)) = TRIM($3) OR TRIM(CAST(ci_titular_paciente AS TEXT)) = TRIM($3) LIMIT 1), 
+      $4::uuid, 
       $5::DATE, 
       $6
-    )`,
+    ) RETURNING id_consulta`,
     [
       datos.especialidad_consulta,
       datos.usuario_consulta,
-      datos.ci_beneficiario_paciente, // <--- Aquí pasas la cédula en lugar del ID
+      cedulaPaciente,
       datos.doctor_consulta,
       fechaConsulta,
       datos.diagnostico_consulta
     ]
   );
+
+  const idConsultaCreada = resultadoConsulta[0]?.id_consulta;
+  if (!idConsultaCreada) {
+    throw new Error("No se pudo obtener el ID de la consulta creada.");
+  }
+
+  // 2. Si marcó que aplica reposo, guardamos la suspensión
+  const tieneReposo = Boolean(datos.tiene_reposo);
+  const inicioSusp = datos.fecha_inicio_suspension?.trim();
+  const finSusp = datos.fecha_final_suspension?.trim();
+
+  if (tieneReposo && inicioSusp && finSusp) {
+    await db.execute(
+      `INSERT INTO public."SUSPENSION" (
+        consulta_suspension,
+        especialidad_suspension,
+        doctor_suspension,
+        fecha_inicio_suspension,
+        fecha_final_suspension
+      ) VALUES ($1::uuid, $2::uuid, $3::uuid, $4::DATE, $5::DATE)`,
+      [
+        idConsultaCreada,
+        datos.especialidad_consulta,
+        datos.doctor_consulta,
+        inicioSusp,
+        finSusp
+      ]
+    );
+  }
 }
 
 /**

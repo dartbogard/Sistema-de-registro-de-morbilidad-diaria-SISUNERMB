@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { obtenerSuspensionesActivas } from '$lib/queries/suspensiones';
+  import { obtenerSuspensionesActivas, obtenerSuspensionesPorCedula } from '$lib/queries/suspensiones';
   let usuarioActual: { id: string; nombre: string; rol: string } | null = null;
   let cedulaBusqueda = '';
   let repososPaciente: any[] = [];
@@ -48,8 +48,8 @@
     mensaje = '';
 
     try {
-      // Aquí puedes implementar o enlazar tu consulta por cédula si lo requieres
-      repososPaciente = []; 
+      const resultado = await obtenerSuspensionesPorCedula(cedulaBusqueda);
+      repososPaciente = resultado as any[];
       
       if (repososPaciente.length === 0) {
         mensaje = 'No se encontraron reposos o suspensiones registrados para esta cédula.';
@@ -181,19 +181,23 @@
           <table>
             <thead>
               <tr>
-                <th>Fecha Emisión</th>
-                <th>Motivo / Diagnóstico</th>
-                <th>Días de Reposo</th>
-                <th>Especialista</th>
+                <th>Cédula</th>
+                <th>Paciente</th>
+                <th>Doctor Tratante</th>
+                <th>Especialidad</th>
+                <th>Fecha Inicio</th>
+                <th>Fecha Final</th>
               </tr>
             </thead>
             <tbody>
               {#each repososPaciente as item}
                 <tr>
-                  <td class="texto-bold">{item.fecha}</td>
-                  <td>{item.motivo}</td>
-                  <td>{item.dias}</td>
-                  <td>{item.medico}</td>
+                  <td class="texto-bold">{item.ci_beneficiario_paciente}</td>
+                  <td>{item.nombre_completo_paciente}</td>
+                  <td>{item.doctor}</td>
+                  <td>{item.tipo_especialidad}</td>
+                  <td>{item.fecha_inicio_suspension}</td>
+                  <td>{item.fecha_final_suspension}</td>
                 </tr>
               {/each}
             </tbody>
@@ -201,7 +205,7 @@
         </div>
       {/if}
 
-      <!-- Sección de Suspensiones Activas (Conectada a la DB real) -->
+      <!-- Sección de Suspensiones Activas -->
       <div class="tabla-container seccion-activas">
         <div class="tabla-header-info active-header">
           <div class="header-flex">
@@ -219,7 +223,8 @@
           <table>
             <thead>
               <tr>
-                <th>ID</th>
+                <th>Cédula</th>
+                <th>Paciente</th>
                 <th>Doctor Tratante</th>
                 <th>Especialidad</th>
                 <th>Fecha Inicio</th>
@@ -229,7 +234,8 @@
             <tbody>
               {#each suspensionesActivas as susp}
                 <tr>
-                  <td class="texto-bold">#{susp.id_suspension}</td>
+                  <td class="texto-bold">{susp.ci_beneficiario_paciente}</td>
+                  <td>{susp.nombre_completo_paciente}</td>
                   <td>{susp.doctor}</td>
                   <td>{susp.tipo_especialidad}</td>
                   <td>{susp.fecha_inicio_suspension}</td>
