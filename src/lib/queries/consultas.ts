@@ -92,6 +92,7 @@ export async function obtenerHistorialConsultas() {
      ORDER BY c.fecha_consulta DESC`
   );
 }
+
 export async function obtenerHistorialPorCedula(cedula: string) {
   const db = await getDb();
   const cedulaLimpia = cedula.trim();
@@ -118,8 +119,10 @@ export async function obtenerHistorialPorCedula(cedula: string) {
     [cedulaLimpia] 
   );
 }
+
 /**
- * Obtiene el reporte de morbilidad agrupado por diagnóstico y especialidad en un rango de fechas.
+ * Obtiene el reporte de morbilidad agrupado por diagnóstico y especialidad en un rango de fechas,
+ * incluyendo los nombres de los pacientes atendidos para cada diagnóstico.
  */
 export async function obtenerReporteMorbilidad(fechaInicio: string, fechaFin: string) {
   const db = await getDb();
@@ -130,8 +133,10 @@ export async function obtenerReporteMorbilidad(fechaInicio: string, fechaFin: st
     `SELECT 
       c.diagnostico_consulta AS diagnostico,
       COUNT(c.id_consulta)::INTEGER AS total_casos,
-      e.tipo_especialidad AS especialidad
+      e.tipo_especialidad AS especialidad,
+      COALESCE(STRING_AGG(DISTINCT p.nombre_completo_paciente, ', '), 'Sin paciente asignado') AS paciente
      FROM public."CONSULTA" c
+     LEFT JOIN public."PACIENTE" p ON c.paciente_consulta = p.id_paciente
      INNER JOIN public."ESPECIALIDAD" e ON c.especialidad_consulta = e.id_especialidad
      WHERE c.fecha_consulta::DATE BETWEEN $1::DATE AND $2::DATE
        AND c.fecha_eliminacion_consulta IS NULL
@@ -140,6 +145,35 @@ export async function obtenerReporteMorbilidad(fechaInicio: string, fechaFin: st
     [fechaInicio, fechaFin]
   );
 }
+
+/**
+ * Obtiene el detalle individual de cada consulta en el rango de fechas con datos del paciente y doctor.
+ */
+export async function obtenerConsultasDetalladas(fechaInicio: string, fechaFin: string) {
+  const db = await getDb();
+  
+  if (!fechaInicio || !fechaFin) return [];
+
+  return await db.select(
+    `SELECT 
+      c.id_consulta,
+      TO_CHAR(c.fecha_consulta, 'YYYY-MM-DD') AS fecha_consulta,
+      c.diagnostico_consulta AS diagnostico,
+      COALESCE(p.nombre_completo_paciente, 'Sin registrar') AS paciente,
+      COALESCE(p.ci_beneficiario_paciente, p.ci_titular_paciente, 'S/C') AS cedula,
+      e.tipo_especialidad AS especialidad,
+      COALESCE(d.nombre_doctor || ' ' || d.apellido_doctor, 'No asignado') AS doctor
+     FROM public."CONSULTA" c
+     LEFT JOIN public."PACIENTE" p ON c.paciente_consulta = p.id_paciente
+     INNER JOIN public."ESPECIALIDAD" e ON c.especialidad_consulta = e.id_especialidad
+     LEFT JOIN public."DOCTOR" d ON c.doctor_consulta = d.id_doctor
+     WHERE c.fecha_consulta::DATE BETWEEN $1::DATE AND $2::DATE
+       AND c.fecha_eliminacion_consulta IS NULL
+     ORDER BY c.fecha_consulta DESC, c.id_consulta DESC`,
+    [fechaInicio, fechaFin]
+  );
+}
+
 export async function obtenerEspecialidades() {
   const db = await getDb();
   return await db.select(
