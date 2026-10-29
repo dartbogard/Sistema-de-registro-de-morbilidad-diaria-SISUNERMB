@@ -111,7 +111,7 @@
         </a>
 
         <!-- modulo creación -->
-        <a href="landing_page_user/modulo-creacion">
+        <a href="landing_page_user/modulo-creación">
           <li>
             <span class="material-symbols-outlined">search</span>
             Módulo Creación Administrativo
