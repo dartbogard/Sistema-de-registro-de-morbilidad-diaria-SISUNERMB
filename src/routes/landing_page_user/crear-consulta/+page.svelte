@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { type CrearConsultaInput } from '$lib/types/consulta';
   import { 
     crearConsulta, 
     obtenerEspecialidades, 
@@ -10,7 +9,6 @@
 
   let usuarioActual: { id: number; nombre: string; rol: string } | null = null;
 
-  // Extendemos la interfaz o campos para soportar reposo si el backend lo requiere
   let formulario: any = {
     especialidad_consulta: '',
     usuario_consulta: 1,
@@ -27,6 +25,7 @@
   let doctores: any[] = [];
   let mensajeExito = '';
   let mensajeError = '';
+  let cargando = false;
 
   onMount(async () => {
     const sesion = localStorage.getItem('usuario_sesion');
@@ -48,7 +47,7 @@
   });
 
   async function alCambiarEspecialidad() {
-    formulario.doctor_consulta = 1; // Resetear doctor
+    formulario.doctor_consulta = 1;
     if (formulario.especialidad_consulta) {
       doctores = (await obtenerDoctoresPorEspecialidad(Number(formulario.especialidad_consulta))) as any[];
     } else {
@@ -60,10 +59,11 @@
     event.preventDefault();
     mensajeExito = '';
     mensajeError = '';
+    cargando = true;
 
     try {
       await crearConsulta(formulario);
-      mensajeExito = '¡Consulta y reposo registrados exitosamente!';
+      mensajeExito = '¡Consulta médica y reposo registrados exitosamente!';
       formulario.ci_beneficiario_paciente = '';
       formulario.diagnostico_consulta = '';
       formulario.especialidad_consulta = '';
@@ -75,6 +75,8 @@
     } catch (error: any) {
       console.error('Error al registrar consulta:', error);
       mensajeError = `Error al registrar consulta: ${error.message || error}`;
+    } finally {
+      cargando = false;
     }
   }
 
@@ -88,7 +90,7 @@
   <title>SISUNERMB - Registrar Consulta</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 </svelte:head>
 
 <nav class="nav-landing-user">
@@ -111,172 +113,236 @@
     </div>
 
     <div class="div-modulos-wrapper">
-      <p>Modulos</p>
+      <p>Módulos</p>
       
       <ul class="ul-sidebar">
-        <a href="/landing_page_user/crear-paciente">
-          <li>
+        <li>
+          <a href="/landing_page_user/crear-paciente" class="btn-menu-item">
             <span class="material-symbols-outlined">person</span>
-            Registrar Paciente
-          </li>
-        </a>
+            <span>Registrar Paciente</span>
+          </a>
+        </li>
 
-        <a href="/landing_page_user/crear-consulta">
-          <li style="background-color: #34495e; color: #3498db;">
+        <li>
+          <a href="/landing_page_user/crear-consulta" class="btn-menu-item activo">
             <span class="material-symbols-outlined">medication</span>
-            Consulta Diagnóstico
-          </li>
-        </a>
+            <span>Consulta Diagnóstico</span>
+          </a>
+        </li>
 
-        <a href="/landing_page_user/historial-paciente">
-          <li>
+        <li>
+          <a href="/landing_page_user/historial-paciente" class="btn-menu-item">
             <span class="material-symbols-outlined">history</span>
-            Historial Paciente
-          </li>
-        </a>
+            <span>Historial Paciente</span>
+          </a>
+        </li>
 
-        <a href="/landing_page_user/reposos-suspensiones">
-          <li>
+        <li>
+          <a href="/landing_page_user/reposos-suspensiones" class="btn-menu-item">
             <span class="material-symbols-outlined">calendar_clock</span>
-            Reposos/Suspensiones
-          </li>
-        </a>
+            <span>Reposos/Suspensiones</span>
+          </a>
+        </li>
 
-        <a href="/landing_page_user/reporte-morbilidad">
-          <li>
+        <li>
+          <a href="/landing_page_user/reporte-morbilidad" class="btn-menu-item">
             <span class="material-symbols-outlined">patient_list</span>
-            Reporte Morbilidad
-          </li>
-        </a>
+            <span>Reporte Morbilidad</span>
+          </a>
+        </li>
 
-        <a href="/landing_page_user/buscar-paciente">
-          <li>
+        <li>
+          <a href="/landing_page_user/buscar-paciente" class="btn-menu-item">
             <span class="material-symbols-outlined">search</span>
-            Búsqueda Paciente
-          </li>
-        </a>
+            <span>Búsqueda Paciente</span>
+          </a>
+        </li>
 
-        <button type="button" on:click={cerrarSesion} class="btn-logout-link">
-          <li>
+        <li>
+          <button type="button" on:click={cerrarSesion} class="btn-menu-item btn-logout">
             <span class="material-symbols-outlined">logout</span>
-            Cerrar Sesión
-          </li>
-        </button>
+            <span>Cerrar Sesión</span>
+          </button>
+        </li>
       </ul>
     </div>
   </aside>
 
   <main class="main-landing-user">
-    <div class="form-container">
-      <h2>Registro de Nueva Consulta Médica</h2>
-      
+    <div class="contenido-modulo">
+      <div class="header-seccion">
+        <h2>Registro de Consulta Médica</h2>
+        <p class="subtitulo">Ingrese el diagnóstico y asigne el médico tratante para la atención del paciente.</p>
+      </div>
+
       {#if mensajeExito}
-        <div class="alert success">{mensajeExito}</div>
+        <div class="alerta-exito">
+          <span class="material-symbols-outlined">check_circle</span>
+          <p>{mensajeExito}</p>
+        </div>
       {/if}
+
       {#if mensajeError}
-        <div class="alert error">{mensajeError}</div>
+        <div class="alerta-error">
+          <span class="material-symbols-outlined">error</span>
+          <p>{mensajeError}</p>
+        </div>
       {/if}
 
-      <form on:submit={manejarRegistroConsulta}>
-        <div class="form-group">
-          <label for="ci_beneficiario">Cédula del Beneficiario (Paciente)</label>
-          <input 
-            type="text" 
-            id="ci_beneficiario" 
-            bind:value={formulario.ci_beneficiario_paciente} 
-            placeholder="Ej: V-12345678" 
-            required 
-          />
-        </div>
+      <form on:submit={manejarRegistroConsulta} class="formulario-card">
 
-        <div class="form-group">
-          <label for="especialidad">Especialidad</label>
-          <select 
-            id="especialidad" 
-            bind:value={formulario.especialidad_consulta} 
-            on:change={alCambiarEspecialidad}
-            required
-          >
-            <option value="">-- Seleccione una especialidad --</option>
-            {#each especialidades as esp}
-              <option value={esp.id_especialidad}>{esp.tipo_especialidad}</option>
-            {/each}
-          </select>
-        </div>
+        <div class="seccion-bloque">
+          <h3 class="seccion-titulo">
+            <span class="material-symbols-outlined">medical_information</span>
+            <span>Datos de la Consulta</span>
+          </h3>
 
-        <div class="form-group">
-          <label for="doctor">Doctor Tratante</label>
-          <select 
-            id="doctor" 
-            bind:value={formulario.doctor_consulta} 
-            required
-          >
-            <option value="">-- Seleccione un doctor --</option>
-            {#each doctores as doc}
-              <option value={doc.id_doctor}>{doc.nombre_completo}</option>
-            {/each}
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="fecha">Fecha de Consulta</label>
-          <input 
-            type="date" 
-            id="fecha" 
-            bind:value={formulario.fecha_consulta} 
-            required 
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="diagnostico">Diagnóstico</label>
-          <textarea 
-            id="diagnostico" 
-            bind:value={formulario.diagnostico_consulta} 
-            rows="4" 
-            placeholder="Detalles del diagnóstico médico..."
-            required
-          ></textarea>
-        </div>
-
-        <!-- SECCIÓN DE REPOSO MÉDICO -->
-        <div class="form-group" style="background-color: #f9f9f9; padding: 15px; border-radius: 4px; border: 1px solid #e1e1e1;">
-          <label class="checkbox-label" style="display: flex; align-items: center; cursor: pointer; gap: 10px; font-weight: bold; color: #2c3e50;">
-            <input 
-              type="checkbox" 
-              bind:checked={formulario.tiene_reposo} 
-              style="width: 18px; height: 18px;"
-            />
-            ¿Aplica Reposo Médico?
-          </label>
-
-          {#if formulario.tiene_reposo}
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; border-top: 1px solid #ddd; padding-top: 15px;">
-              <div>
-                <label for="fecha_inicio" style="font-size: 0.9rem; color: #555;">Fecha Inicio Reposo</label>
+          <div class="grid-campos">
+            <!-- Cédula del Beneficiario / Paciente -->
+            <div class="campo-grupo col-span-2">
+              <label for="ci_beneficiario">Cédula del Paciente (Titular o Beneficiario) *</label>
+              <div class="input-con-icono">
+                <span class="material-symbols-outlined">badge</span>
                 <input 
-                  type="date" 
-                  id="fecha_inicio" 
-                  bind:value={formulario.fecha_inicio_suspension} 
-                  required={formulario.tiene_reposo}
-                  style="width: 100%; padding: 8px; border: 1px solid #dcdde1; border-radius: 4px; background: #fff;"
-                />
-              </div>
-              <div>
-                <label for="fecha_fin" style="font-size: 0.9rem; color: #555;">Fecha Fin Reposo</label>
-                <input 
-                  type="date" 
-                  id="fecha_fin" 
-                  bind:value={formulario.fecha_final_suspension} 
-                  required={formulario.tiene_reposo}
-                  style="width: 100%; padding: 8px; border: 1px solid #dcdde1; border-radius: 4px; background: #fff;"
+                  type="text" 
+                  id="ci_beneficiario" 
+                  bind:value={formulario.ci_beneficiario_paciente} 
+                  placeholder="Ej: V-12345678" 
+                  disabled={cargando}
+                  required 
                 />
               </div>
             </div>
-          {/if}
+
+            <!-- Especialidad -->
+            <div class="campo-grupo">
+              <label for="especialidad">Especialidad Médica *</label>
+              <div class="input-con-icono">
+                <span class="material-symbols-outlined">local_hospital</span>
+                <select 
+                  id="especialidad" 
+                  bind:value={formulario.especialidad_consulta} 
+                  on:change={alCambiarEspecialidad}
+                  disabled={cargando}
+                  required
+                >
+                  <option value="">-- Seleccione especialidad --</option>
+                  {#each especialidades as esp}
+                    <option value={esp.id_especialidad}>{esp.tipo_especialidad}</option>
+                  {/each}
+                </select>
+              </div>
+            </div>
+
+            <!-- Doctor Tratante -->
+            <div class="campo-grupo">
+              <label for="doctor">Doctor Tratante *</label>
+              <div class="input-con-icono">
+                <span class="material-symbols-outlined">stethoscope</span>
+                <select 
+                  id="doctor" 
+                  bind:value={formulario.doctor_consulta} 
+                  disabled={cargando}
+                  required
+                >
+                  <option value="">-- Seleccione doctor --</option>
+                  {#each doctores as doc}
+                    <option value={doc.id_doctor}>{doc.nombre_completo}</option>
+                  {/each}
+                </select>
+              </div>
+            </div>
+
+            <!-- Fecha de Consulta -->
+            <div class="campo-grupo col-span-2">
+              <label for="fecha">Fecha de la Consulta *</label>
+              <div class="input-con-icono">
+                <span class="material-symbols-outlined">calendar_today</span>
+                <input 
+                  type="date" 
+                  id="fecha" 
+                  bind:value={formulario.fecha_consulta} 
+                  disabled={cargando}
+                  required 
+                />
+              </div>
+            </div>
+
+            <!-- Diagnóstico -->
+            <div class="campo-grupo col-span-2">
+              <label for="diagnostico">Diagnóstico Médico / Motivo *</label>
+              <textarea 
+                id="diagnostico" 
+                bind:value={formulario.diagnostico_consulta} 
+                rows="4" 
+                placeholder="Describa el diagnóstico, observaciones o tratamiento indicado..."
+                disabled={cargando}
+                required
+              ></textarea>
+            </div>
+          </div>
         </div>
 
-        <button type="submit" class="btn-submit">Guardar Consulta y Reposo</button>
+        <!-- SECCIÓN DE REPOSO MÉDICO -->
+        <div class="seccion-bloque">
+          <h3 class="seccion-titulo">
+            <span class="material-symbols-outlined">hotel</span>
+            <span>Reposo Médico y Suspensión</span>
+          </h3>
+
+          <div class="reposo-card">
+            <label class="label-switch">
+              <input 
+                type="checkbox" 
+                bind:checked={formulario.tiene_reposo} 
+                disabled={cargando}
+              />
+              <span class="switch-ui"></span>
+              <span class="switch-texto">¿Aplica Reposo Médico / Suspensión Laboral?</span>
+            </label>
+
+            {#if formulario.tiene_reposo}
+              <div class="grid-campos grid-reposo-fechas">
+                <div class="campo-grupo">
+                  <label for="fecha_inicio">Fecha Inicio del Reposo *</label>
+                  <div class="input-con-icono">
+                    <span class="material-symbols-outlined">event_available</span>
+                    <input 
+                      type="date" 
+                      id="fecha_inicio" 
+                      bind:value={formulario.fecha_inicio_suspension} 
+                      required={formulario.tiene_reposo}
+                      disabled={cargando}
+                    />
+                  </div>
+                </div>
+
+                <div class="campo-grupo">
+                  <label for="fecha_fin">Fecha Final del Reposo *</label>
+                  <div class="input-con-icono">
+                    <span class="material-symbols-outlined">event_busy</span>
+                    <input 
+                      type="date" 
+                      id="fecha_fin" 
+                      bind:value={formulario.fecha_final_suspension} 
+                      required={formulario.tiene_reposo}
+                      disabled={cargando}
+                    />
+                  </div>
+                </div>
+              </div>
+            {/if}
+          </div>
+        </div>
+
+        <!-- Botón Guardar -->
+        <div class="form-acciones">
+          <button type="submit" class="btn-primario" disabled={cargando}>
+            <span class="material-symbols-outlined">{cargando ? 'hourglass_top' : 'save'}</span>
+            <span>{cargando ? 'Guardando...' : 'Guardar Consulta y Reposo'}</span>
+          </button>
+        </div>
+
       </form>
     </div>
   </main>
@@ -295,15 +361,15 @@
   }
 
   :global(html, body) {
-    height: 100%;
+    height: 100vh;
     font-family: 'Google Sans', sans-serif;
     background-color: ghostwhite;
-    overflow: hidden; /* Evita doble barra en el body general */
+    overflow: hidden;
   }
 
   :global(body) {
     display: grid;
-    grid-template-rows: 8% 1fr auto;
+    grid-template-rows: 60px 1fr 30px;
     grid-template-areas: 
       "header"
       "body"
@@ -317,45 +383,39 @@
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    height: 100%;
+    padding: 0 20px;
   }
 
   .div-inner-nav {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    width: 25%;
+    gap: 15px;
     height: 100%;
   }
 
   .image-wrapper {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    width: 50%;
     height: 100%;
   }
 
   .img-nav-login {    
     display: block;
-    width: 100%;
-    max-height: 100%;
+    height: 40px;
     object-fit: contain;
   }
 
   h1 {
     color: #fff;
-    text-align: right;
     font-family: 'Montserrat', sans-serif;
-    font-weight: 400;
-    letter-spacing: -1px;
-    padding-right: 20px;
+    font-size: 1.1rem;
+    font-weight: 500;
   }
 
   .div-grid-wrapper {
     grid-area: body;
     display: grid;
-    grid-template-columns: 20% 1fr;
+    grid-template-columns: 240px 1fr;
     grid-template-areas: "sidebar main";
     height: 100%;
     overflow: hidden;
@@ -366,44 +426,46 @@
     background-color: #2c3e50;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
     height: 100%;
     color: #fff;
     overflow-y: auto;
+    position: relative;
+    z-index: 50;
   }
 
   .div-img-sidebar-wrapper {
     width: 100%;
-    height: 25%;
+    height: 120px;
     background-position: center;
     background-size: cover;
     background-repeat: no-repeat;
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    padding-bottom: 15px;
+    padding-bottom: 12px;
     flex-shrink: 0;
   }
 
   .div-img-sidebar-wrapper h3 {
     background-color: rgba(0, 0, 0, 0.6);
-    padding: 5px 15px;
+    padding: 4px 12px;
     border-radius: 4px;
-    font-size: 1.1rem;
+    font-size: 0.95rem;
   }
 
   .div-modulos-wrapper {
     width: 100%;
-    padding: 20px 0;
+    padding: 15px 0;
+    flex-grow: 1;
   }
 
   .div-modulos-wrapper p {
     padding-left: 20px;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     text-transform: uppercase;
     color: #bdc3c7;
     margin-bottom: 10px;
+    font-weight: 600;
   }
 
   .ul-sidebar {
@@ -411,129 +473,282 @@
     width: 100%;
   }
 
-  .ul-sidebar a,
-  .btn-logout-link {
+  .btn-menu-item {
     text-decoration: none;
     color: #ecf0f1;
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 12px;
     width: 100%;
+    padding: 12px 20px;
     background: none;
     border: none;
     font: inherit;
     cursor: pointer;
     text-align: left;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
-  .ul-sidebar li {
-    display: flex;
-    align-items: center;
-    padding: 12px 20px;
-    transition: background-color 0.3s ease;
-    gap: 12px;
-  }
-
-  .ul-sidebar li:hover {
+  .btn-menu-item:hover,
+  .btn-menu-item.activo {
     background-color: #34495e;
     color: #3498db;
   }
 
+  .btn-menu-item span.material-symbols-outlined {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
   .main-landing-user {
     grid-area: main;
-    background-color: #f4f6f7;
+    background-color: #f1f5f9;
     padding: 30px;
-    overflow-y: auto !important; /* Fuerza la barra de desplazamiento vertical */
+    overflow-y: auto;
     height: 100%;
   }
 
-  .form-container {
-    background-color: #ffffff;
-    padding: 30px;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    max-width: 700px;
-    margin: 0 auto 60px auto; /* Margen abajo para que el botón respire y no quede pegado al footer */
+  .contenido-modulo {
+    max-width: 850px;
+    margin: 0 auto;
   }
 
-  .form-container h2 {
-    margin-bottom: 20px;
-    color: #2c3e50;
+  .header-seccion {
+    margin-bottom: 24px;
+  }
+
+  .contenido-modulo h2 {
+    font-size: 1.8rem;
+    color: #1e293b;
+    font-weight: 700;
     font-family: 'Montserrat', sans-serif;
   }
 
-  .form-group {
-    margin-bottom: 15px;
+  .subtitulo {
+    color: #64748b;
+    font-size: 0.95rem;
+    margin-top: 4px;
+  }
+
+  .formulario-card {
+    background: #ffffff;
+    padding: 30px;
+    border-radius: 14px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    border: 1px solid #e2e8f0;
     display: flex;
     flex-direction: column;
+    gap: 26px;
   }
 
-  .form-group label {
-    margin-bottom: 5px;
-    font-weight: 500;
-    color: #34495e;
+  .seccion-bloque {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 24px;
   }
 
-  .form-group input,
-  .form-group select,
-  .form-group textarea {
-    padding: 10px;
-    border: 1px solid #dcdde1;
-    border-radius: 4px;
-    font-size: 1rem;
-    font-family: 'Google Sans', sans-serif;
-    background-color: #fff;
+  .seccion-bloque:last-of-type {
+    border-bottom: none;
+    padding-bottom: 0;
   }
 
-  .form-group input:focus,
-  .form-group select:focus,
-  .form-group textarea:focus {
-    outline: none;
-    border-color: #007aff;
+  .seccion-titulo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1e293b;
   }
 
-  .btn-submit {
-    background-color: #007aff;
-    color: white;
-    border: none;
-    padding: 12px 20px;
-    font-size: 1rem;
-    border-radius: 4px;
-    cursor: pointer;
+  .seccion-titulo span.material-symbols-outlined {
+    color: #007aff;
+    font-size: 22px;
+  }
+
+  .grid-campos {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+  }
+
+  .col-span-2 {
+    grid-column: span 2;
+  }
+
+  .campo-grupo {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .campo-grupo label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+  }
+
+  .input-con-icono {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .input-con-icono span.material-symbols-outlined {
+    position: absolute;
+    left: 12px;
+    font-size: 20px;
+    color: #94a3b8;
+    pointer-events: none;
+  }
+
+  .input-con-icono input,
+  .input-con-icono select {
     width: 100%;
-    transition: background-color 0.2s ease;
+    padding: 11px 14px 11px 40px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    background-color: #f8fafc;
+    color: #0f172a;
+    outline: none;
+    transition: all 0.2s ease;
+    font-family: inherit;
+  }
+
+  .input-con-icono input:focus,
+  .input-con-icono select:focus,
+  textarea:focus {
+    border-color: #007aff;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+  }
+
+  textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    background-color: #f8fafc;
+    color: #0f172a;
+    outline: none;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    resize: vertical;
+  }
+
+  .reposo-card {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 18px 20px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .label-switch {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+  }
+
+  .label-switch input {
+    width: 20px;
+    height: 20px;
+    accent-color: #007aff;
+    cursor: pointer;
+  }
+
+  .switch-texto {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #334155;
+  }
+
+  .grid-reposo-fechas {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 16px;
+  }
+
+  .form-acciones {
+    display: flex;
+    justify-content: flex-end;
     margin-top: 10px;
   }
 
-  .btn-submit:hover {
-    background-color: #005bb5;
+  .btn-primario {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #007aff;
+    color: white;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 122, 255, 0.2);
   }
 
-  .alert {
-    padding: 10px;
-    margin-bottom: 15px;
-    border-radius: 4px;
-    font-size: 0.9rem;
+  .btn-primario:hover:not(:disabled) {
+    background-color: #0062cc;
+    box-shadow: 0 4px 6px rgba(0, 122, 255, 0.3);
   }
 
-  .alert.success {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
+  button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
-  .alert.error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
+  .alerta-exito {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-weight: 500;
+  }
+
+  .alerta-error {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-weight: 500;
   }
 
   .footer-landing-user {
     grid-area: footer;
     background-color: #007aff;
-    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #fff;
     font-size: 0.85rem;
+  }
+
+  @media (max-width: 768px) {
+    .grid-campos {
+      grid-template-columns: 1fr;
+    }
+    .col-span-2 {
+      grid-column: span 1;
+    }
   }
 </style>

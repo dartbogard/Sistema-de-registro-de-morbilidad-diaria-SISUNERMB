@@ -115,7 +115,7 @@
         </li>
 
         <li>
-          <a href="/landing_page_user/buscar-paciente" class="btn-menu-item">
+          <a href="/landing_page_user/buscar-paciente" class="btn-menu-item activo">
             <span class="material-symbols-outlined">search</span>
             <span>Búsqueda Paciente</span>
           </a>
@@ -343,7 +343,8 @@
     transition: background-color 0.2s ease, color 0.2s ease;
   }
 
-  .btn-menu-item:hover {
+  .btn-menu-item:hover,
+  .btn-menu-item.activo {
     background-color: #34495e;
     color: #3498db;
   }
