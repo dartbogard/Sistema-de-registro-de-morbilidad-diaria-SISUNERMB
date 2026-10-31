@@ -1,5 +1,6 @@
 import { getDb } from '$lib/database';
 import type { Especialidad, CrearEspecialidadInput } from '$lib/types/especialidad';
+import { registrarAuditoria } from './auditoria';
 
 export interface EspecialidadDetallada {
   id_especialidad: number | string;
@@ -37,11 +38,64 @@ export async function obtenerEspecialidades(): Promise<Especialidad[]> {
   );
 }
 
-export async function crearEspecialidad(datos: CrearEspecialidadInput): Promise<void> {
+export async function crearEspecialidad(
+  datos: CrearEspecialidadInput,
+  usuarioResponsable: string = 'Administrador'
+): Promise<void> {
   const db = await getDb();
   await db.execute(
     `INSERT INTO public."ESPECIALIDAD" (tipo_especialidad) 
      VALUES ($1)`,
-    [datos.tipo_especialidad]
+    [datos.tipo_especialidad.trim()]
+  );
+
+  await registrarAuditoria(
+    usuarioResponsable,
+    'AGREGÓ',
+    'ESPECIALIDAD',
+    `Registró la nueva área o especialidad médica: ${datos.tipo_especialidad.trim()}.`
+  );
+}
+
+export async function editarEspecialidad(
+  idEspecialidad: string | number,
+  nuevoNombre: string,
+  usuarioResponsable: string = 'Administrador'
+): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    `UPDATE public."ESPECIALIDAD"
+     SET tipo_especialidad = $1,
+         fecha_actualizacion_especialidad = (NOW() AT TIME ZONE 'America/Caracas')
+     WHERE id_especialidad = $2::uuid`,
+    [nuevoNombre.trim(), String(idEspecialidad)]
+  );
+
+  await registrarAuditoria(
+    usuarioResponsable,
+    'EDITÓ',
+    'ESPECIALIDAD',
+    `Modificó el nombre de la especialidad clínica a: ${nuevoNombre.trim()}.`
+  );
+}
+
+export async function eliminarEspecialidad(
+  idEspecialidad: string | number,
+  nombreEspecialidad: string,
+  usuarioResponsable: string = 'Administrador'
+): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    `UPDATE public."ESPECIALIDAD"
+     SET fecha_eliminacion_especialidad = (NOW() AT TIME ZONE 'America/Caracas')
+     WHERE id_especialidad = $1::uuid`,
+    [String(idEspecialidad)]
+  );
+
+  await registrarAuditoria(
+    usuarioResponsable,
+    'ELIMINÓ',
+    'ESPECIALIDAD',
+    `Dio de baja (ocultamiento lógico) a la especialidad médica: ${nombreEspecialidad}.`
   );
 }

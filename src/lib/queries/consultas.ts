@@ -263,21 +263,22 @@ export async function obtenerEspecialidades() {
   );
 }
 
-export async function obtenerDoctoresPorEspecialidad(idEspecialidad?: number) {
+export async function obtenerDoctoresPorEspecialidad(idEspecialidad?: number | string) {
   const db = await getDb();
   if (idEspecialidad) {
     return await db.select(
-      `SELECT id_doctor, nombre_doctor || ' ' || apellido_doctor AS nombre_completo 
-       FROM public."DOCTOR" 
-       WHERE especialidad_doctor = $1 AND fecha_eliminacion_doctor IS NULL 
-       ORDER BY nombre_doctor ASC`,
-      [idEspecialidad]
+      `SELECT DISTINCT d.id_doctor, d.nombre_doctor || ' ' || d.apellido_doctor AS nombre_completo 
+       FROM public."DOCTOR" d
+       JOIN public."DOCTOR_ESPECIALIDAD" de ON d.id_doctor = de.id_doctor
+       WHERE de.id_especialidad::text = $1::text AND d.fecha_eliminacion_doctor IS NULL 
+       ORDER BY nombre_completo ASC`,
+      [String(idEspecialidad)]
     );
   }
   return await db.select(
-    `SELECT id_doctor, nombre_doctor || ' ' || apellido_doctor AS nombre_completo 
-     FROM public."DOCTOR" 
-     WHERE fecha_eliminacion_doctor IS NULL 
-     ORDER BY nombre_doctor ASC`
+    `SELECT d.id_doctor, d.nombre_doctor || ' ' || d.apellido_doctor AS nombre_completo 
+     FROM public."DOCTOR" d
+     WHERE d.fecha_eliminacion_doctor IS NULL 
+     ORDER BY nombre_completo ASC`
   );
 }

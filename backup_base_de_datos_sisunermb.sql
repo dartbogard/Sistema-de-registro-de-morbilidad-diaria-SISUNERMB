@@ -12210,6 +12210,18 @@ INSERT INTO public."SUSPENSION" ("id_suspension", "consulta_suspension", "especi
 CREATE TABLE public."DOCTOR_ESPECIALIDAD" (
   "id_doctor" uuid NOT NULL,
   "id_especialidad" uuid NOT NULL,
-  PRIMARY KEY ("id_doctor")
+  PRIMARY KEY ("id_doctor", "id_especialidad")
 );
 
+
+
+-- Tabla: HISTORIAL_AUDITORIA
+CREATE TABLE IF NOT EXISTS public."HISTORIAL_AUDITORIA" (
+  "id_auditoria" uuid DEFAULT gen_random_uuid() NOT NULL,
+  "usuario_auditoria" text NOT NULL,
+  "accion_auditoria" text NOT NULL,
+  "entidad_auditoria" text NOT NULL,
+  "detalle_auditoria" text NOT NULL,
+  "fecha_auditoria" timestamp with time zone DEFAULT (NOW() AT TIME ZONE 'America/Caracas') NOT NULL,
+  PRIMARY KEY ("id_auditoria")
+);

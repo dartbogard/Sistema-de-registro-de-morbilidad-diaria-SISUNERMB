@@ -170,9 +170,9 @@
   });
 
   async function alCambiarEspecialidad() {
-    formulario.doctor_consulta = 1;
+    formulario.doctor_consulta = '';
     if (formulario.especialidad_consulta) {
-      doctores = (await obtenerDoctoresPorEspecialidad(Number(formulario.especialidad_consulta))) as any[];
+      doctores = (await obtenerDoctoresPorEspecialidad(formulario.especialidad_consulta)) as any[];
     } else {
       doctores = (await obtenerDoctoresPorEspecialidad()) as any[];
     }

@@ -1,5 +1,6 @@
 import { getDb } from '$lib/database';
 import type { Doctor, CrearDoctorInput } from '$lib/types/doctor';
+import { registrarAuditoria } from './auditoria';
 
 export interface DoctorDetallado {
   id_doctor: string;
@@ -9,6 +10,8 @@ export interface DoctorDetallado {
   ci_doctor: string;
   ci_profesional_doctor: string;
   especialidades: string;
+  especialidades_ids_str?: string;
+  especialidades_ids?: string[];
   total_consultas: number;
 }
 
@@ -17,7 +20,7 @@ export interface DoctorDetallado {
  */
 export async function obtenerDoctoresDetallados(): Promise<DoctorDetallado[]> {
   const db = await getDb();
-  return await db.select<DoctorDetallado[]>(
+  const rows = await db.select<DoctorDetallado[]>(
     `SELECT 
        d.id_doctor,
        d.nombre_doctor,
@@ -26,6 +29,7 @@ export async function obtenerDoctoresDetallados(): Promise<DoctorDetallado[]> {
        COALESCE(d.ci_doctor, 'S/C') AS ci_doctor,
        COALESCE(d.ci_profesional_doctor, 'S/N') AS ci_profesional_doctor,
        COALESCE(STRING_AGG(DISTINCT e.tipo_especialidad, ', '), 'General / Sin vincular') AS especialidades,
+       COALESCE(STRING_AGG(DISTINCT de.id_especialidad::text, ','), '') AS especialidades_ids_str,
        COUNT(DISTINCT c.id_consulta)::int AS total_consultas
      FROM public."DOCTOR" d
      LEFT JOIN public."DOCTOR_ESPECIALIDAD" de ON d.id_doctor = de.id_doctor
@@ -35,6 +39,13 @@ export async function obtenerDoctoresDetallados(): Promise<DoctorDetallado[]> {
      GROUP BY d.id_doctor, d.nombre_doctor, d.apellido_doctor, d.ci_doctor, d.ci_profesional_doctor
      ORDER BY d.apellido_doctor ASC, d.nombre_doctor ASC`
   );
+
+  return rows.map(r => ({
+    ...r,
+    especialidades_ids: r.especialidades_ids_str 
+      ? r.especialidades_ids_str.split(',').filter(Boolean)
+      : []
+  }));
 }
 
 /**
@@ -50,53 +61,148 @@ export async function obtenerDoctores(): Promise<Doctor[]> {
 }
 
 /**
- * Crea un nuevo doctor.
+ * Crea un nuevo doctor asignando una o varias especialidades y registrando en la auditoría.
  */
-export async function crearDoctor(datos: CrearDoctorInput): Promise<void> {
+export async function crearDoctorConEspecialidades(
+  datos: CrearDoctorInput,
+  especialidadesIds: string[],
+  usuarioResponsable: string = 'Administrador',
+  nombresEspecialidades: string = ''
+): Promise<void> {
   const db = await getDb();
+  const nuevoIdDoctor = crypto.randomUUID();
+
+  // 1. Insertar el doctor
   await db.execute(
     `INSERT INTO public."DOCTOR" (
+      id_doctor,
       nombre_doctor, 
       apellido_doctor, 
       ci_profesional_doctor, 
       ci_doctor
-    ) VALUES ($1, $2, $3, $4)`,
+    ) VALUES ($1::uuid, $2, $3, $4, $5)`,
     [
-      datos.nombre_doctor,
-      datos.apellido_doctor,
-      datos.ci_profesional_doctor,
-      datos.ci_doctor
+      nuevoIdDoctor,
+      datos.nombre_doctor.trim(),
+      datos.apellido_doctor.trim(),
+      datos.ci_profesional_doctor.trim(),
+      datos.ci_doctor.trim()
     ]
   );
+
+  // 2. Vincular con sus especialidades médicas en DOCTOR_ESPECIALIDAD
+  for (const idEspecialidad of especialidadesIds) {
+    if (idEspecialidad && idEspecialidad.trim()) {
+      await db.execute(
+        `INSERT INTO public."DOCTOR_ESPECIALIDAD" (id_doctor, id_especialidad)
+         VALUES ($1::uuid, $2::uuid)
+         ON CONFLICT DO NOTHING`,
+        [nuevoIdDoctor, idEspecialidad.trim()]
+      );
+    }
+  }
+
+  // 3. Registrar acción en el historial de auditoría
+  const detalle = `Registró al especialista médico Dr(a). ${datos.nombre_doctor.trim()} ${datos.apellido_doctor.trim()} (C.I. ${datos.ci_doctor.trim()}, MPPS: ${datos.ci_profesional_doctor.trim()}). Especialidad(es): ${nombresEspecialidades || 'Ninguna asignada'}.`;
+  await registrarAuditoria(usuarioResponsable, 'AGREGÓ', 'DOCTOR', detalle);
 }
 
 /**
- * Vincula un doctor con una especialidad en la tabla intermedia DOCTOR_ESPECIALIDAD.
+ * Modifica los datos de un doctor existente y actualiza sus especialidades.
  */
-export async function asignarEspecialidadADoctor(
-  idDoctor: string, 
-  idEspecialidad: string
+export async function editarDoctor(
+  idDoctor: string,
+  datos: CrearDoctorInput,
+  especialidadesIds: string[],
+  usuarioResponsable: string = 'Administrador',
+  nombresEspecialidades: string = ''
 ): Promise<void> {
+  const db = await getDb();
+
+  // 1. Actualizar datos del doctor
+  await db.execute(
+    `UPDATE public."DOCTOR" 
+     SET nombre_doctor = $1, 
+         apellido_doctor = $2, 
+         ci_profesional_doctor = $3, 
+         ci_doctor = $4,
+         fecha_actualizacion_doctor = (NOW() AT TIME ZONE 'America/Caracas')
+     WHERE id_doctor = $5::uuid`,
+    [
+      datos.nombre_doctor.trim(),
+      datos.apellido_doctor.trim(),
+      datos.ci_profesional_doctor.trim(),
+      datos.ci_doctor.trim(),
+      idDoctor
+    ]
+  );
+
+  // 2. Reemplazar vinculaciones de especialidad
+  await db.execute(
+    `DELETE FROM public."DOCTOR_ESPECIALIDAD" WHERE id_doctor = $1::uuid`,
+    [idDoctor]
+  );
+
+  for (const idEspecialidad of especialidadesIds) {
+    if (idEspecialidad && idEspecialidad.trim()) {
+      await db.execute(
+        `INSERT INTO public."DOCTOR_ESPECIALIDAD" (id_doctor, id_especialidad)
+         VALUES ($1::uuid, $2::uuid)
+         ON CONFLICT DO NOTHING`,
+        [idDoctor, idEspecialidad.trim()]
+      );
+    }
+  }
+
+  // 3. Registrar auditoría
+  const detalle = `Modificó los datos del Dr(a). ${datos.nombre_doctor.trim()} ${datos.apellido_doctor.trim()} (C.I. ${datos.ci_doctor.trim()}, MPPS: ${datos.ci_profesional_doctor.trim()}). Nuevas especialidades: ${nombresEspecialidades || 'Sin especialidades'}.`;
+  await registrarAuditoria(usuarioResponsable, 'EDITÓ', 'DOCTOR', detalle);
+}
+
+/**
+ * Realiza un borrado lógico (ocultamiento) de un doctor en el sistema sin eliminar registros históricos.
+ */
+export async function eliminarDoctor(
+  idDoctor: string,
+  nombreCompleto: string,
+  ciDoctor: string,
+  usuarioResponsable: string = 'Administrador'
+): Promise<void> {
+  const db = await getDb();
+
+  await db.execute(
+    `UPDATE public."DOCTOR" 
+     SET fecha_eliminacion_doctor = (NOW() AT TIME ZONE 'America/Caracas')
+     WHERE id_doctor = $1::uuid`,
+    [idDoctor]
+  );
+
+  const detalle = `Dio de baja (ocultamiento lógico) al Dr(a). ${nombreCompleto} (C.I. ${ciDoctor}). Sus registros médicos y consultas previas permanecen preservados.`;
+  await registrarAuditoria(usuarioResponsable, 'ELIMINÓ', 'DOCTOR', detalle);
+}
+
+/**
+ * Función legacy de crear doctor simple.
+ */
+export async function crearDoctor(datos: CrearDoctorInput): Promise<void> {
+  await crearDoctorConEspecialidades(datos, []);
+}
+
+export async function asignarEspecialidadADoctor(idDoctor: string, idEspecialidad: string): Promise<void> {
   const db = await getDb();
   await db.execute(
     `INSERT INTO public."DOCTOR_ESPECIALIDAD" (id_doctor, id_especialidad)
-     VALUES ($1, $2)
+     VALUES ($1::uuid, $2::uuid)
      ON CONFLICT DO NOTHING`,
     [idDoctor, idEspecialidad]
   );
 }
 
-/**
- * Elimina la vinculación entre un doctor y una especialidad.
- */
-export async function removerEspecialidadDeDoctor(
-  idDoctor: string, 
-  idEspecialidad: string
-): Promise<void> {
+export async function removerEspecialidadDeDoctor(idDoctor: string, idEspecialidad: string): Promise<void> {
   const db = await getDb();
   await db.execute(
     `DELETE FROM public."DOCTOR_ESPECIALIDAD" 
-     WHERE id_doctor = $1 AND id_especialidad = $2`,
+     WHERE id_doctor = $1::uuid AND id_especialidad = $2::uuid`,
     [idDoctor, idEspecialidad]
   );
 }
