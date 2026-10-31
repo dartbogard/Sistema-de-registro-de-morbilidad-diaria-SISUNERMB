@@ -163,33 +163,43 @@ export const obtenerHistorialPorPaciente = obtenerHistorialPorCedula;
 export async function obtenerReporteMorbilidad(fechaInicio?: string, fechaFin?: string, filtroPaciente?: string) {
   const db = await getDb();
   
-  const fInicio = fechaInicio?.trim() || null;
-  const fFin = fechaFin?.trim() || null;
-  const fPaciente = filtroPaciente?.trim() || null;
-
-  return await db.select(
-    `SELECT 
+  let query = `
+    SELECT 
       c.diagnostico_consulta AS diagnostico,
       COUNT(c.id_consulta)::INTEGER AS total_casos,
       e.tipo_especialidad AS especialidad,
       COALESCE(STRING_AGG(DISTINCT p.nombre_completo_paciente, ', '), 'Sin paciente asignado') AS paciente
-     FROM public."CONSULTA" c
-     LEFT JOIN public."PACIENTE" p ON c.paciente_consulta = p.id_paciente
-     INNER JOIN public."ESPECIALIDAD" e ON c.especialidad_consulta = e.id_especialidad
-     WHERE ($1::TEXT IS NULL OR c.fecha_consulta::DATE >= $1::DATE)
-       AND ($2::TEXT IS NULL OR c.fecha_consulta::DATE <= $2::DATE)
-       AND (
-         $3::TEXT IS NULL 
-         OR p.nombre_completo_paciente ILIKE '%' || $3 || '%'
-         OR p.nombre_titular_paciente ILIKE '%' || $3 || '%'
-         OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || $3 || '%'
-         OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || $3 || '%'
-       )
-       AND c.fecha_eliminacion_consulta IS NULL
-     GROUP BY c.diagnostico_consulta, e.tipo_especialidad
-     ORDER BY total_casos DESC`,
-    [fInicio, fFin, fPaciente]
-  );
+    FROM public."CONSULTA" c
+    LEFT JOIN public."PACIENTE" p ON c.paciente_consulta = p.id_paciente
+    INNER JOIN public."ESPECIALIDAD" e ON c.especialidad_consulta = e.id_especialidad
+    WHERE c.fecha_eliminacion_consulta IS NULL
+  `;
+  const params: any[] = [];
+
+  if (fechaInicio?.trim()) {
+    params.push(fechaInicio.trim());
+    query += ` AND c.fecha_consulta::DATE >= $${params.length}::DATE `;
+  }
+
+  if (fechaFin?.trim()) {
+    params.push(fechaFin.trim());
+    query += ` AND c.fecha_consulta::DATE <= $${params.length}::DATE `;
+  }
+
+  if (filtroPaciente?.trim()) {
+    params.push(filtroPaciente.trim());
+    const idx = params.length;
+    query += ` AND (
+      p.nombre_completo_paciente ILIKE '%' || $${idx} || '%'
+      OR p.nombre_titular_paciente ILIKE '%' || $${idx} || '%'
+      OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
+      OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
+    ) `;
+  }
+
+  query += ` GROUP BY c.diagnostico_consulta, e.tipo_especialidad ORDER BY total_casos DESC `;
+
+  return await db.select(query, params);
 }
 
 /**
@@ -199,12 +209,8 @@ export async function obtenerReporteMorbilidad(fechaInicio?: string, fechaFin?: 
 export async function obtenerConsultasDetalladas(fechaInicio?: string, fechaFin?: string, filtroPaciente?: string) {
   const db = await getDb();
   
-  const fInicio = fechaInicio?.trim() || null;
-  const fFin = fechaFin?.trim() || null;
-  const fPaciente = filtroPaciente?.trim() || null;
-
-  return await db.select(
-    `SELECT 
+  let query = `
+    SELECT 
       c.id_consulta,
       TO_CHAR(COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) AT TIME ZONE 'America/Caracas', 'YYYY-MM-DD') AS fecha_consulta,
       TO_CHAR(COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) AT TIME ZONE 'America/Caracas', 'HH12:MI AM') AS hora_consulta,
@@ -213,23 +219,38 @@ export async function obtenerConsultasDetalladas(fechaInicio?: string, fechaFin?
       COALESCE(p.ci_beneficiario_paciente, p.ci_titular_paciente, 'S/C') AS cedula,
       e.tipo_especialidad AS especialidad,
       COALESCE(d.nombre_doctor || ' ' || d.apellido_doctor, 'No asignado') AS doctor
-     FROM public."CONSULTA" c
-     LEFT JOIN public."PACIENTE" p ON c.paciente_consulta = p.id_paciente
-     INNER JOIN public."ESPECIALIDAD" e ON c.especialidad_consulta = e.id_especialidad
-     LEFT JOIN public."DOCTOR" d ON c.doctor_consulta = d.id_doctor
-     WHERE ($1::TEXT IS NULL OR c.fecha_consulta::DATE >= $1::DATE)
-       AND ($2::TEXT IS NULL OR c.fecha_consulta::DATE <= $2::DATE)
-       AND (
-         $3::TEXT IS NULL 
-         OR p.nombre_completo_paciente ILIKE '%' || $3 || '%'
-         OR p.nombre_titular_paciente ILIKE '%' || $3 || '%'
-         OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || $3 || '%'
-         OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || $3 || '%'
-       )
-       AND c.fecha_eliminacion_consulta IS NULL
-     ORDER BY COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) DESC, c.id_consulta DESC`,
-    [fInicio, fFin, fPaciente]
-  );
+    FROM public."CONSULTA" c
+    LEFT JOIN public."PACIENTE" p ON c.paciente_consulta = p.id_paciente
+    INNER JOIN public."ESPECIALIDAD" e ON c.especialidad_consulta = e.id_especialidad
+    LEFT JOIN public."DOCTOR" d ON c.doctor_consulta = d.id_doctor
+    WHERE c.fecha_eliminacion_consulta IS NULL
+  `;
+  const params: any[] = [];
+
+  if (fechaInicio?.trim()) {
+    params.push(fechaInicio.trim());
+    query += ` AND c.fecha_consulta::DATE >= $${params.length}::DATE `;
+  }
+
+  if (fechaFin?.trim()) {
+    params.push(fechaFin.trim());
+    query += ` AND c.fecha_consulta::DATE <= $${params.length}::DATE `;
+  }
+
+  if (filtroPaciente?.trim()) {
+    params.push(filtroPaciente.trim());
+    const idx = params.length;
+    query += ` AND (
+      p.nombre_completo_paciente ILIKE '%' || $${idx} || '%'
+      OR p.nombre_titular_paciente ILIKE '%' || $${idx} || '%'
+      OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
+      OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
+    ) `;
+  }
+
+  query += ` ORDER BY COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) DESC, c.id_consulta DESC `;
+
+  return await db.select(query, params);
 }
 
 export async function obtenerEspecialidades() {

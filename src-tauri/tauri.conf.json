@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "morbilidad-sisunermb-proyecto",
-  "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "productName": "SISUNERMB",
+  "version": "1.0.0",
+  "identifier": "com.unermb.sisunermb",
   "build": {
     "frontendDist": "../build",
     "devUrl": "http://localhost:5173",
@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "Registro de Morbilidad Diaria SISUNERMB",
-        "width": 800,
-        "height": 600,
+        "title": "Sistema Integral de Salud – SISUNERMB",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 640,
         "resizable": true,
         "fullscreen": false
       }

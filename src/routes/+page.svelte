@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { obtenerUsuarioPorNombre } from '$lib/queries/usuarios';
+  import { obtenerUrlBaseDatos, guardarUrlBaseDatos } from '$lib/database';
   import Navbar from '$lib/components/Navbar.svelte';
   import Footer from '$lib/components/Footer.svelte';
 
@@ -8,6 +9,37 @@
   let passwordUsuario: string = '';
   let cargando: boolean = false;
   let mensajeError: string = '';
+
+  // Configuración de conexión de base de datos
+  let mostrarModalConfig: boolean = false;
+  let urlConexionActual: string = '';
+  let mensajeConfig: string = '';
+
+  function abrirModalConfig() {
+    urlConexionActual = obtenerUrlBaseDatos();
+    mensajeConfig = '';
+    mostrarModalConfig = true;
+  }
+
+  function guardarConfiguracion() {
+    if (!urlConexionActual.trim()) {
+      mensajeConfig = 'La URL de conexión no puede estar vacía.';
+      return;
+    }
+    guardarUrlBaseDatos(urlConexionActual.trim());
+    mensajeConfig = '¡Configuración de conexión guardada exitosamente!';
+    setTimeout(() => {
+      mostrarModalConfig = false;
+    }, 1200);
+  }
+
+  function setLocalhost() {
+    urlConexionActual = 'postgres://postgres:Tormentadefuego4.*@localhost:5432/Sistema_Sisunermb';
+  }
+
+  function setRemoto() {
+    urlConexionActual = 'postgres://postgres:Tormentadefuego4.*@100.99.19.74:5432/Sistema_Sisunermb';
+  }
 
   async function manejarLogin() {
     mensajeError = '';
@@ -143,8 +175,79 @@
         {/if}
       </button>
     </form>
+
+    <div class="login-card-footer">
+      <button type="button" class="btn-config-db" on:click={abrirModalConfig} title="Configurar dirección de conexión con PostgreSQL">
+        <span class="material-symbols-outlined">settings</span>
+        <span>Configurar Conexión BD</span>
+      </button>
+    </div>
   </div>
 </main>
+
+<!-- Modal de Configuración de Conexión a Base de Datos -->
+{#if mostrarModalConfig}
+  <div class="modal-backdrop-db" on:click|self={() => mostrarModalConfig = false} role="presentation">
+    <div class="modal-card-db" role="dialog" aria-modal="true" tabindex="-1">
+      <div class="modal-header-db">
+        <div class="titulo-con-icono">
+          <span class="material-symbols-outlined icono-modal-db">database</span>
+          <h3>Conexión con PostgreSQL</h3>
+        </div>
+        <button type="button" class="btn-cerrar-modal" on:click={() => mostrarModalConfig = false}>
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="modal-body-db">
+        <p class="modal-desc">
+          Configure la dirección del servidor de base de datos PostgreSQL donde reside <strong>Sistema_Sisunermb</strong>:
+        </p>
+
+        <div class="presets-conexion">
+          <span class="lbl-presets">Opciones de Conexión Rápida:</span>
+          <div class="botones-presets">
+            <button type="button" class="btn-preset" on:click={setLocalhost}>
+              <span class="material-symbols-outlined">computer</span>
+              <span>Esta misma PC (Localhost)</span>
+            </button>
+            <button type="button" class="btn-preset" on:click={setRemoto}>
+              <span class="material-symbols-outlined">cloud</span>
+              <span>Servidor Remoto (100.99.19.74)</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="campo-grupo-modal">
+          <label for="url_db">Cadena de Conexión (PostgreSQL URL):</label>
+          <input 
+            id="url_db" 
+            type="text" 
+            bind:value={urlConexionActual} 
+            placeholder="postgres://usuario:password@host:5432/Sistema_Sisunermb"
+          />
+        </div>
+
+        {#if mensajeConfig}
+          <div class="alerta-config">
+            <span class="material-symbols-outlined">check_circle</span>
+            <p>{mensajeConfig}</p>
+          </div>
+        {/if}
+      </div>
+
+      <div class="modal-footer-db">
+        <button type="button" class="btn-cancelar-modal" on:click={() => mostrarModalConfig = false}>
+          Cancelar
+        </button>
+        <button type="button" class="btn-guardar-modal" on:click={guardarConfiguracion}>
+          <span class="material-symbols-outlined">save</span>
+          <span>Guardar y Aplicar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <!-- Footer Institucional Unificado -->
 <Footer />
@@ -419,6 +522,247 @@
   .btn-login-submit:disabled {
     opacity: 0.65;
     cursor: not-allowed;
+  }
+
+  .login-card-footer {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: center;
+  }
+
+  .btn-config-db {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+
+  .btn-config-db:hover {
+    color: #007aff;
+    background: #f1f5f9;
+  }
+
+  .btn-config-db .material-symbols-outlined {
+    font-size: 16px;
+  }
+
+  /* Modal de Configuración DB */
+  .modal-backdrop-db {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+
+  .modal-card-db {
+    background: #ffffff;
+    border-radius: 14px;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    animation: modalIn 0.25s ease-out;
+  }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.96) translateY(8px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .modal-header-db {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .titulo-con-icono {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .icono-modal-db {
+    color: #007aff;
+    font-size: 24px;
+  }
+
+  .titulo-con-icono h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+  }
+
+  .btn-cerrar-modal {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+  }
+
+  .btn-cerrar-modal:hover {
+    color: #dc2626;
+    background: #fee2e2;
+  }
+
+  .modal-body-db {
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .modal-desc {
+    font-size: 0.86rem;
+    color: #475569;
+    line-height: 1.45;
+  }
+
+  .presets-conexion {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .lbl-presets {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+  }
+
+  .botones-presets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .btn-preset {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-preset:hover {
+    background: #e2e8f0;
+    color: #007aff;
+    border-color: #007aff;
+  }
+
+  .btn-preset .material-symbols-outlined {
+    font-size: 16px;
+  }
+
+  .campo-grupo-modal {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .campo-grupo-modal label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #334155;
+  }
+
+  .campo-grupo-modal input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    color: #0f172a;
+    background: #ffffff;
+    font-family: monospace;
+    outline: none;
+    transition: all 0.2s;
+  }
+
+  .campo-grupo-modal input:focus {
+    border-color: #007aff;
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.12);
+  }
+
+  .alerta-config {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+    border-radius: 8px;
+    font-size: 0.84rem;
+  }
+
+  .modal-footer-db {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 22px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .btn-cancelar-modal {
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-guardar-modal {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: none;
+    background: #007aff;
+    color: #ffffff;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 122, 255, 0.25);
+  }
+
+  .btn-guardar-modal:hover {
+    background: #0062cc;
   }
 
   .spin {
