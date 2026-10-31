@@ -7,6 +7,7 @@
     obtenerDoctoresPorEspecialidad 
   } from '$lib/queries/consultas';
   import { buscarPacientePorCedula } from '$lib/queries/pacientes';
+  import { verificarReposoActivoConDoctor, type ReposoActivoInfo } from '$lib/queries/suspensiones';
   import type { Paciente } from '$lib/types/paciente';
   import Navbar from '$lib/components/Navbar.svelte';
   import Sidebar from '$lib/components/Sidebar.svelte';
@@ -98,6 +99,57 @@
     }
   }
 
+  function formatearFecha(fechaStr: string): string {
+    if (!fechaStr) return '';
+    const partes = fechaStr.split('-');
+    if (partes.length === 3) {
+      return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    }
+    return fechaStr;
+  }
+
+  // Detección y bloqueo de reposos médicos activos con el mismo doctor
+  let reposoActivoDetectado: ReposoActivoInfo | null = null;
+  let verificandoReposo: boolean = false;
+
+  async function verificarReposoActivoExistente() {
+    const ci = (formulario.ci_beneficiario_paciente || '').trim();
+    const docId = formulario.doctor_consulta;
+    
+    if (!formulario.tiene_reposo || !ci || !docId) {
+      reposoActivoDetectado = null;
+      return;
+    }
+
+    verificandoReposo = true;
+    try {
+      const resp = await verificarReposoActivoConDoctor(
+        ci,
+        docId,
+        formulario.fecha_inicio_suspension || undefined
+      );
+
+      if (resp.tieneReposoActivo && resp.reposoActivo) {
+        reposoActivoDetectado = resp.reposoActivo;
+      } else {
+        reposoActivoDetectado = null;
+      }
+    } catch (e) {
+      console.error('Error al comprobar reposo activo:', e);
+      reposoActivoDetectado = null;
+    } finally {
+      verificandoReposo = false;
+    }
+  }
+
+  $: if (formulario.tiene_reposo || formulario.doctor_consulta || formulario.ci_beneficiario_paciente || formulario.fecha_inicio_suspension) {
+    if (formulario.tiene_reposo && formulario.ci_beneficiario_paciente && formulario.doctor_consulta) {
+      verificarReposoActivoExistente();
+    } else {
+      reposoActivoDetectado = null;
+    }
+  }
+
   onMount(async () => {
     const sesion = localStorage.getItem('usuario_sesion');
     if (sesion) {
@@ -130,11 +182,18 @@
     event.preventDefault();
     mensajeExito = '';
     mensajeError = '';
+
+    // Validar si hay reposo activo detectado con el mismo doctor
+    if (formulario.tiene_reposo && reposoActivoDetectado) {
+      mensajeError = `Restricción Institucional: El paciente ya cuenta con un reposo activo otorgado por el doctor ${reposoActivoDetectado.doctor} vigente hasta el ${formatearFecha(reposoActivoDetectado.fecha_final_suspension)}. No puede registrarse un reposo superpuesto con el mismo médico.`;
+      return;
+    }
+
     cargando = true;
 
     try {
       await crearConsulta(formulario);
-      mensajeExito = '¡Consulta médica y reposo registrados exitosamente!';
+      mensajeExito = '¡Consulta médica registrada exitosamente!';
       formulario.ci_beneficiario_paciente = '';
       formulario.diagnostico_consulta = '';
       formulario.especialidad_consulta = '';
@@ -146,6 +205,7 @@
       pacienteSeleccionado = null;
       pacientesCoincidentes = [];
       cedulaNoEncontrada = false;
+      reposoActivoDetectado = null;
     } catch (error: any) {
       console.error('Error al registrar consulta:', error);
       mensajeError = `Error al registrar consulta: ${error.message || error}`;
@@ -390,42 +450,67 @@
             </label>
 
             {#if formulario.tiene_reposo}
-              <div class="grid-campos grid-reposo-fechas">
-                <div class="campo-grupo">
-                  <label for="fecha_inicio">Fecha Inicio del Reposo *</label>
-                  <div class="input-con-icono">
-                    <span class="material-symbols-outlined">event_available</span>
-                    <input 
-                      type="date" 
-                      id="fecha_inicio" 
-                      bind:value={formulario.fecha_inicio_suspension} 
-                      required={formulario.tiene_reposo}
-                      disabled={cargando}
-                    />
+              {#if reposoActivoDetectado}
+                <div class="alerta-bloqueo-reposo">
+                  <div class="icono-bloqueo">
+                    <span class="material-symbols-outlined">block</span>
+                  </div>
+                  <div class="texto-bloqueo">
+                    <h4 class="bloqueo-titulo">¡ATENCIÓN: REPOSO ACTIVO DETECTADO CON ESTE DOCTOR!</h4>
+                    <p class="bloqueo-desc">
+                      El paciente ya posee una suspensión o reposo médico <strong>ACTIVO</strong> otorgado por el 
+                      <strong>{reposoActivoDetectado.doctor}</strong> vigente hasta el 
+                      <strong>{formatearFecha(reposoActivoDetectado.fecha_final_suspension)}</strong> 
+                      ({reposoActivoDetectado.dias_restantes >= 0 ? `${reposoActivoDetectado.dias_restantes} días vigentes restantes` : 'en curso'}).
+                    </p>
+                    <p class="bloqueo-regla">
+                      ⚠️ <strong>Normativa Institucional UNERMB:</strong> No está permitido asignar un nuevo reposo médico superpuesto a un paciente con el mismo médico tratante mientras el anterior siga vigente. Si se trata de una cita de revisión o control de rutina, desactive la casilla de reposo para guardar la consulta médica.
+                    </p>
                   </div>
                 </div>
+              {:else}
+                <div class="grid-campos grid-reposo-fechas">
+                  <div class="campo-grupo">
+                    <label for="fecha_inicio">Fecha Inicio del Reposo *</label>
+                    <div class="input-con-icono">
+                      <span class="material-symbols-outlined">event_available</span>
+                      <input 
+                        type="date" 
+                        id="fecha_inicio" 
+                        bind:value={formulario.fecha_inicio_suspension} 
+                        required={formulario.tiene_reposo}
+                        disabled={cargando}
+                      />
+                    </div>
+                  </div>
 
-                <div class="campo-grupo">
-                  <label for="fecha_fin">Fecha Final del Reposo *</label>
-                  <div class="input-con-icono">
-                    <span class="material-symbols-outlined">event_busy</span>
-                    <input 
-                      type="date" 
-                      id="fecha_fin" 
-                      bind:value={formulario.fecha_final_suspension} 
-                      required={formulario.tiene_reposo}
-                      disabled={cargando}
-                    />
+                  <div class="campo-grupo">
+                    <label for="fecha_fin">Fecha Final del Reposo *</label>
+                    <div class="input-con-icono">
+                      <span class="material-symbols-outlined">event_busy</span>
+                      <input 
+                        type="date" 
+                        id="fecha_fin" 
+                        bind:value={formulario.fecha_final_suspension} 
+                        required={formulario.tiene_reposo}
+                        disabled={cargando}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+              {/if}
             {/if}
           </div>
         </div>
 
         <!-- Botón Guardar -->
         <div class="form-acciones">
-          <button type="submit" class="btn-primario" disabled={cargando}>
+          <button 
+            type="submit" 
+            class="btn-primario" 
+            disabled={cargando || (formulario.tiene_reposo && Boolean(reposoActivoDetectado))}
+            title={formulario.tiene_reposo && reposoActivoDetectado ? 'No se puede guardar: Reposo superpuesto activo detectado con este doctor' : ''}
+          >
             <span class="material-symbols-outlined">{cargando ? 'hourglass_top' : 'save'}</span>
             <span>{cargando ? 'Guardando...' : 'Guardar Consulta y Reposo'}</span>
           </button>
@@ -509,9 +594,12 @@
   .input-con-icono span.material-symbols-outlined {
     position: absolute;
     left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
     font-size: 20px;
     color: #94a3b8;
     pointer-events: none;
+    z-index: 2;
   }
 
   .input-con-icono input,
@@ -901,6 +989,66 @@
 
   .enlace-admin:hover {
     color: #0369a1;
+  }
+
+  /* Alerta Bloqueo Reposo Superpuesto */
+  .alerta-bloqueo-reposo {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    background: linear-gradient(135deg, #fff1f2 0%, #fee2e2 100%);
+    border: 2px solid #ef4444;
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-top: 14px;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.12);
+  }
+
+  .icono-bloqueo {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: #dc2626;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .icono-bloqueo span {
+    font-size: 26px;
+  }
+
+  .texto-bloqueo {
+    flex: 1;
+  }
+
+  .bloqueo-titulo {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #991b1b;
+    margin: 0 0 4px 0;
+    letter-spacing: 0.3px;
+  }
+
+  .bloqueo-desc {
+    font-size: 0.88rem;
+    color: #7f1d1d;
+    margin: 0 0 8px 0;
+    line-height: 1.45;
+  }
+
+  .bloqueo-regla {
+    font-size: 0.82rem;
+    color: #991b1b;
+    margin: 0;
+    background: rgba(255, 255, 255, 0.7);
+    padding: 8px 12px;
+    border-radius: 6px;
+    border-left: 3px solid #dc2626;
+    line-height: 1.4;
   }
 
   @media (max-width: 768px) {

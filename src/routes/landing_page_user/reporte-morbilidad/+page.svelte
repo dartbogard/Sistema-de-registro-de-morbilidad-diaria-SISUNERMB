@@ -2,7 +2,12 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { obtenerReporteMorbilidad, obtenerConsultasDetalladas } from '$lib/queries/consultas';
-  import { generarPDFMorbilidad, type ItemMorbilidad, type ConsultaDetallada } from '$lib/utils/reporte-pdf';
+  import { 
+    generarPDFMorbilidad, 
+    generarPDFMorbilidadNumerica, 
+    type ItemMorbilidad, 
+    type ConsultaDetallada 
+  } from '$lib/utils/reporte-pdf';
   import Navbar from '$lib/components/Navbar.svelte';
   import Sidebar from '$lib/components/Sidebar.svelte';
   import Footer from '$lib/components/Footer.svelte';
@@ -10,9 +15,11 @@
   let usuarioActual: { id: string; nombre: string; rol: string } | null = null;
   let fechaInicio = '';
   let fechaFin = '';
+  let filtroBusquedaPaciente = '';
   let reporteMorbilidad: ItemMorbilidad[] = [];
   let consultasDetalladas: ConsultaDetallada[] = [];
   let tabActiva: 'resumen' | 'detalle' = 'resumen';
+  let lapsoActivo: 'diario' | 'semanal' | 'mensual' | 'anual' | 'total' | null = 'diario';
   let mensaje = '';
   let mensajeExito = '';
   let cargando = false;
@@ -25,14 +32,64 @@
 
   $: totalCasos = reporteMorbilidad.reduce((acc, item) => acc + Number(item.total_casos || 0), 0);
 
+  function obtenerFechaHoyVenezuela(): string {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Caracas',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    return formatter.format(new Date()); // Retorna "YYYY-MM-DD"
+  }
+
+  function obtenerFechaDiasAtrasVenezuela(dias: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() - dias);
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Caracas',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    return formatter.format(d);
+  }
+
   onMount(() => {
     const sesion = localStorage.getItem('usuario_sesion');
     if (sesion) {
       usuarioActual = JSON.parse(sesion);
+      // Auto-cargar la morbilidad diaria (de hoy en Venezuela) al entrar al módulo
+      seleccionarLapso('diario');
     } else {
       goto('/');
     }
   });
+
+  function seleccionarLapso(lapso: 'diario' | 'semanal' | 'mensual' | 'anual' | 'total') {
+    lapsoActivo = lapso;
+    const hoyStr = obtenerFechaHoyVenezuela();
+
+    if (lapso === 'diario') {
+      fechaInicio = hoyStr;
+      fechaFin = hoyStr;
+    } else if (lapso === 'semanal') {
+      fechaInicio = obtenerFechaDiasAtrasVenezuela(6);
+      fechaFin = hoyStr;
+    } else if (lapso === 'mensual') {
+      const [anio, mes] = hoyStr.split('-');
+      fechaInicio = `${anio}-${mes}-01`;
+      fechaFin = hoyStr;
+    } else if (lapso === 'anual') {
+      const [anio] = hoyStr.split('-');
+      fechaInicio = `${anio}-01-01`;
+      fechaFin = hoyStr;
+    } else if (lapso === 'total') {
+      fechaInicio = '';
+      fechaFin = '';
+    }
+
+    generarReporte();
+  }
 
   function cerrarSesion() {
     localStorage.removeItem('usuario_sesion');
@@ -49,14 +106,8 @@
   }
 
   async function generarReporte() {
-    if (!fechaInicio || !fechaFin) {
-      mensaje = 'Por favor seleccione un rango de fechas válido.';
-      reporteMorbilidad = [];
-      consultasDetalladas = [];
-      return;
-    }
-
-    if (new Date(fechaInicio) > new Date(fechaFin)) {
+    // Si ambas fechas están definidas, validar orden cronológico
+    if (fechaInicio && fechaFin && new Date(fechaInicio) > new Date(fechaFin)) {
       mensaje = 'La fecha de inicio no puede ser posterior a la fecha final.';
       reporteMorbilidad = [];
       consultasDetalladas = [];
@@ -69,15 +120,21 @@
 
     try {
       const [datosMorbilidad, datosDetalle] = await Promise.all([
-        obtenerReporteMorbilidad(fechaInicio, fechaFin) as Promise<ItemMorbilidad[]>,
-        obtenerConsultasDetalladas(fechaInicio, fechaFin) as Promise<ConsultaDetallada[]>
+        obtenerReporteMorbilidad(fechaInicio, fechaFin, filtroBusquedaPaciente) as Promise<ItemMorbilidad[]>,
+        obtenerConsultasDetalladas(fechaInicio, fechaFin, filtroBusquedaPaciente) as Promise<ConsultaDetallada[]>
       ]);
 
       reporteMorbilidad = datosMorbilidad;
       consultasDetalladas = datosDetalle;
       
       if (reporteMorbilidad.length === 0) {
-        mensaje = 'No se encontraron registros de morbilidad para el rango de fechas seleccionado.';
+        if (filtroBusquedaPaciente.trim()) {
+          mensaje = `No se registraron atenciones médicas para "${filtroBusquedaPaciente.trim()}" en el período consultado.`;
+        } else if (lapsoActivo === 'diario') {
+          mensaje = 'No se registran atenciones médicas para el día de hoy hasta el momento. Puede presionar "Semanal", "Mensual" o "Histórico Total" para ver la morbilidad acumulada.';
+        } else {
+          mensaje = 'No se encontraron registros de morbilidad para el rango de fechas seleccionado.';
+        }
       }
     } catch (error) {
       console.error('Error al generar el reporte de morbilidad:', error);
@@ -103,7 +160,8 @@
         fechaFin,
         usuarioGenerador: usuarioActual?.nombre || 'Personal Administrativo SISUNERMB',
         morbilidad: reporteMorbilidad,
-        consultasDetalladas
+        consultasDetalladas,
+        filtroPaciente: filtroBusquedaPaciente.trim() || undefined
       });
 
       urlPDFModal = resultado.blobUrl;
@@ -111,13 +169,49 @@
       mostrarModalPDF = true;
 
       if (resultado.rutaGuardada) {
-        mensajeExito = `¡Reporte guardado exitosamente en Descargas! (${resultado.nombreArchivo})`;
+        mensajeExito = `¡Reporte oficial guardado exitosamente en Descargas! (${resultado.nombreArchivo})`;
       } else {
-        mensajeExito = `¡Reporte generado exitosamente! Puede visualizarlo o imprimirlo en el visor.`;
+        mensajeExito = `¡Reporte oficial generado exitosamente! Puede visualizarlo o imprimirlo en el visor.`;
       }
     } catch (error) {
       console.error('Error al generar el PDF:', error);
       mensaje = 'Ocurrió un error al generar el archivo PDF.';
+    } finally {
+      exportandoPDF = false;
+    }
+  }
+
+  async function descargarReporteNumericoPDF() {
+    if (reporteMorbilidad.length === 0) {
+      mensaje = 'No hay datos disponibles para generar el reporte numérico en PDF.';
+      return;
+    }
+
+    try {
+      exportandoPDF = true;
+      mensaje = '';
+      mensajeExito = '';
+
+      const resultado = await generarPDFMorbilidadNumerica({
+        fechaInicio,
+        fechaFin,
+        usuarioGenerador: usuarioActual?.nombre || 'Personal Administrativo SISUNERMB',
+        morbilidad: reporteMorbilidad,
+        filtroPaciente: filtroBusquedaPaciente.trim() || undefined
+      });
+
+      urlPDFModal = resultado.blobUrl;
+      nombreArchivoPDF = resultado.nombreArchivo;
+      mostrarModalPDF = true;
+
+      if (resultado.rutaGuardada) {
+        mensajeExito = `¡Reporte estadístico numérico guardado exitosamente en Descargas! (${resultado.nombreArchivo})`;
+      } else {
+        mensajeExito = `¡Reporte numérico generado exitosamente! Puede visualizarlo o imprimirlo en el visor.`;
+      }
+    } catch (error) {
+      console.error('Error al generar el PDF numérico:', error);
+      mensaje = 'Ocurrió un error al generar el archivo PDF numérico.';
     } finally {
       exportandoPDF = false;
     }
@@ -153,31 +247,129 @@
       </div>
       
       <div class="buscador-card">
+        <!-- Barra de Lapsos Predeterminados -->
+        <div class="lapsos-barra">
+          <div class="lapsos-label">
+            <span class="material-symbols-outlined">tune</span>
+            <span>Lapsos Rápidos:</span>
+          </div>
+          <div class="lapsos-botones">
+            <button 
+              type="button" 
+              class="btn-lapso {lapsoActivo === 'diario' ? 'lapso-activo' : ''}" 
+              on:click={() => seleccionarLapso('diario')}
+              disabled={cargando}
+            >
+              <span class="material-symbols-outlined">today</span>
+              <span>Diario (Hoy)</span>
+            </button>
+
+            <button 
+              type="button" 
+              class="btn-lapso {lapsoActivo === 'semanal' ? 'lapso-activo' : ''}" 
+              on:click={() => seleccionarLapso('semanal')}
+              disabled={cargando}
+            >
+              <span class="material-symbols-outlined">date_range</span>
+              <span>Semanal (7 Días)</span>
+            </button>
+
+            <button 
+              type="button" 
+              class="btn-lapso {lapsoActivo === 'mensual' ? 'lapso-activo' : ''}" 
+              on:click={() => seleccionarLapso('mensual')}
+              disabled={cargando}
+            >
+              <span class="material-symbols-outlined">calendar_month</span>
+              <span>Mensual</span>
+            </button>
+
+            <button 
+              type="button" 
+              class="btn-lapso {lapsoActivo === 'anual' ? 'lapso-activo' : ''}" 
+              on:click={() => seleccionarLapso('anual')}
+              disabled={cargando}
+            >
+              <span class="material-symbols-outlined">event_note</span>
+              <span>Anual</span>
+            </button>
+
+            <button 
+              type="button" 
+              class="btn-lapso {lapsoActivo === 'total' ? 'lapso-activo' : ''}" 
+              on:click={() => seleccionarLapso('total')}
+              disabled={cargando}
+            >
+              <span class="material-symbols-outlined">all_inclusive</span>
+              <span>Histórico Total</span>
+            </button>
+          </div>
+        </div>
+
         <div class="buscador-container">
           <label class="input-grupo-fechas">
             <span>Desde:</span>
-            <input type="date" bind:value={fechaInicio} />
+            <input type="date" bind:value={fechaInicio} on:input={() => (lapsoActivo = null)} />
           </label>
           <label class="input-grupo-fechas">
             <span>Hasta:</span>
-            <input type="date" bind:value={fechaFin} />
+            <input type="date" bind:value={fechaFin} on:input={() => (lapsoActivo = null)} />
           </label>
+
+          <label class="input-grupo-paciente">
+            <span>Buscar Paciente (Cédula o Nombre/Apellido):</span>
+            <div class="input-con-icono-buscador">
+              <span class="material-symbols-outlined icono-input-paciente">person_search</span>
+              <input 
+                type="text" 
+                placeholder="Ej. 12345678 o Carlos Mendoza..." 
+                bind:value={filtroBusquedaPaciente} 
+                on:keydown={(e) => { if (e.key === 'Enter') generarReporte(); }}
+              />
+              {#if filtroBusquedaPaciente}
+                <button 
+                  type="button" 
+                  class="btn-limpiar-paciente" 
+                  on:click={() => { filtroBusquedaPaciente = ''; generarReporte(); }}
+                  title="Limpiar búsqueda de paciente"
+                >
+                  <span class="material-symbols-outlined">close</span>
+                </button>
+              {/if}
+            </div>
+          </label>
+
           <button type="button" on:click={generarReporte} disabled={cargando} class="btn-buscar">
             <span class="material-symbols-outlined btn-icono">{cargando ? 'hourglass_top' : 'search'}</span>
-            <span>{cargando ? 'Generando...' : 'Generar Reporte'}</span>
+            <span>{cargando ? 'Consultando...' : 'Consultar'}</span>
           </button>
 
           {#if reporteMorbilidad.length > 0}
-            <button 
-              type="button" 
-              on:click={descargarReportePDF} 
-              disabled={exportandoPDF} 
-              class="btn-pdf"
-              title="Descargar reporte en formato PDF para el rango de fechas seleccionado"
-            >
-              <span class="material-symbols-outlined btn-icono">picture_as_pdf</span>
-              <span>{exportandoPDF ? 'Procesando...' : 'Descargar PDF'}</span>
-            </button>
+            <div class="botones-exportacion-grupo">
+              <!-- Botón 1: Reporte Numérico Consolidado de Cifras (Sin Nombres) -->
+              <button 
+                type="button" 
+                on:click={descargarReporteNumericoPDF} 
+                disabled={exportandoPDF} 
+                class="btn-pdf-numerico"
+                title="Generar reporte estadístico institucional con cifras numéricas y patologías frecuentes (sin nombres de pacientes)"
+              >
+                <span class="material-symbols-outlined btn-icono">analytics</span>
+                <span>{exportandoPDF ? 'Procesando...' : 'Reporte Numérico (Cifras)'}</span>
+              </button>
+
+              <!-- Botón 2: Reporte Detallado con Pacientes -->
+              <button 
+                type="button" 
+                on:click={descargarReportePDF} 
+                disabled={exportandoPDF} 
+                class="btn-pdf"
+                title="Descargar reporte oficial con detalle de pacientes y atenciones médicas"
+              >
+                <span class="material-symbols-outlined btn-icono">picture_as_pdf</span>
+                <span>{exportandoPDF ? 'Procesando...' : 'Descargar PDF Detallado'}</span>
+              </button>
+            </div>
           {/if}
         </div>
       </div>
@@ -191,8 +383,27 @@
 
       {#if mensaje}
         <div class="alerta-mensaje">
-          <span class="material-symbols-outlined">info</span>
-          <p>{mensaje}</p>
+          <span class="material-symbols-outlined icono-alerta">info</span>
+          <div class="alerta-contenido">
+            <p class="alerta-texto">{mensaje}</p>
+            {#if lapsoActivo === 'diario' && reporteMorbilidad.length === 0}
+              <div class="sugerencias-lapsos">
+                <span class="sugerencia-label">Acceso rápido a períodos acumulados:</span>
+                <button type="button" class="btn-sugerencia" on:click={() => seleccionarLapso('semanal')}>
+                  <span class="material-symbols-outlined">date_range</span>
+                  <span>Ver Semana</span>
+                </button>
+                <button type="button" class="btn-sugerencia" on:click={() => seleccionarLapso('mensual')}>
+                  <span class="material-symbols-outlined">calendar_month</span>
+                  <span>Ver Mes</span>
+                </button>
+                <button type="button" class="btn-sugerencia" on:click={() => seleccionarLapso('total')}>
+                  <span class="material-symbols-outlined">all_inclusive</span>
+                  <span>Ver Histórico Total</span>
+                </button>
+              </div>
+            {/if}
+          </div>
         </div>
       {/if}
 
@@ -218,8 +429,20 @@
           <div class="metrica-card">
             <span class="material-symbols-outlined metrica-icono icono-verde">calendar_month</span>
             <div>
-              <p class="metrica-valor-fecha">{formatearFecha(fechaInicio)} - {formatearFecha(fechaFin)}</p>
-              <p class="metrica-etiqueta">Período de Consulta</p>
+              <p class="metrica-valor-fecha">{fechaInicio && fechaFin ? `${formatearFecha(fechaInicio)} - ${formatearFecha(fechaFin)}` : 'Histórico Acumulado'}</p>
+              <p class="metrica-etiqueta">Período Seleccionado</p>
+            </div>
+          </div>
+
+          <div class="metrica-card">
+            <span class="material-symbols-outlined metrica-icono icono-morado">leaderboard</span>
+            <div>
+              <p class="metrica-valor-destacado" title={reporteMorbilidad[0]?.diagnostico || 'N/D'}>
+                {reporteMorbilidad[0]?.diagnostico ? (reporteMorbilidad[0].diagnostico.length > 20 ? reporteMorbilidad[0].diagnostico.substring(0, 20) + '...' : reporteMorbilidad[0].diagnostico) : 'N/D'}
+              </p>
+              <p class="metrica-etiqueta">
+                Patología Más Común ({reporteMorbilidad[0]?.total_casos || 0} casos / {totalCasos > 0 ? ((Number(reporteMorbilidad[0]?.total_casos || 0) / totalCasos) * 100).toFixed(1) : 0}%)
+              </p>
             </div>
           </div>
         </div>
@@ -255,8 +478,9 @@
                 <thead>
                   <tr>
                     <th>Diagnóstico / Patología</th>
-                    <th>Paciente(s)</th>
+                    <th>Paciente(s) Atendido(s)</th>
                     <th>Total Casos</th>
+                    <th>% Relativo</th>
                     <th>Especialidad</th>
                   </tr>
                 </thead>
@@ -273,6 +497,11 @@
                       <td class="td-casos">
                         <span class="badge-casos">{item.total_casos}</span>
                       </td>
+                      <td class="td-porcentaje">
+                        <span class="badge-porcentaje">
+                          {totalCasos > 0 ? ((Number(item.total_casos) / totalCasos) * 100).toFixed(1) + '%' : '0%'}
+                        </span>
+                      </td>
                       <td>
                         <span class="badge-especialidad">{item.especialidad}</span>
                       </td>
@@ -281,8 +510,9 @@
                 </tbody>
                 <tfoot>
                   <tr class="fila-total">
-                    <td colspan="2" class="texto-bold">TOTAL GENERAL DE CASOS</td>
+                    <td colspan="2" class="texto-bold">TOTAL GENERAL DE CASOS ATENDIDOS</td>
                     <td class="td-casos texto-bold">{totalCasos}</td>
+                    <td class="td-porcentaje texto-bold">100.0%</td>
                     <td></td>
                   </tr>
                 </tfoot>
@@ -306,7 +536,15 @@
                   {#each consultasDetalladas as item}
                     <tr>
                       <td>
-                        <span class="badge-fecha">{formatearFecha(item.fecha_consulta)}</span>
+                        <div class="fecha-hora-badge">
+                          <span class="fecha-texto">{formatearFecha(item.fecha_consulta)}</span>
+                          {#if (item as any).hora_consulta}
+                            <span class="hora-texto">
+                              <span class="material-symbols-outlined icono-reloj-sm">schedule</span>
+                              {(item as any).hora_consulta}
+                            </span>
+                          {/if}
+                        </div>
                       </td>
                       <td class="texto-bold">{item.paciente}</td>
                       <td class="td-cedula">{item.cedula}</td>
@@ -376,6 +614,82 @@
     border: 1px solid #e2e8f0;
   }
 
+  /* Barra de Lapsos Predeterminados */
+  .lapsos-barra {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid #e2e8f0;
+    flex-wrap: wrap;
+  }
+
+  .lapsos-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #1e293b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .lapsos-label .material-symbols-outlined {
+    font-size: 20px;
+    color: #007aff;
+  }
+
+  .lapsos-botones {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .btn-lapso {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #334155;
+    background-color: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+  }
+
+  .btn-lapso .material-symbols-outlined {
+    font-size: 18px;
+    color: #64748b;
+  }
+
+  .btn-lapso:hover:not(:disabled) {
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #94a3b8;
+  }
+
+  .btn-lapso.lapso-activo {
+    background-color: #007aff;
+    color: #ffffff;
+    border-color: #007aff;
+    box-shadow: 0 2px 6px rgba(0, 122, 255, 0.25);
+  }
+
+  .btn-lapso.lapso-activo .material-symbols-outlined {
+    color: #ffffff;
+  }
+
+  .btn-lapso:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
   .buscador-container {
     display: flex;
     gap: 15px;
@@ -392,6 +706,63 @@
     color: #475569;
   }
 
+  .input-grupo-paciente {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+    min-width: 260px;
+    flex: 1;
+    max-width: 380px;
+  }
+
+  .input-con-icono-buscador {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+
+  .icono-input-paciente {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 20px;
+    color: #64748b;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .btn-limpiar-paciente {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 50%;
+    transition: all 0.2s;
+    z-index: 2;
+  }
+
+  .btn-limpiar-paciente:hover {
+    color: #dc2626;
+    background-color: #fee2e2;
+  }
+
+  .btn-limpiar-paciente .material-symbols-outlined {
+    font-size: 16px;
+  }
+
   .buscador-container input {
     padding: 10px 14px;
     border: 1px solid #cbd5e1;
@@ -401,6 +772,12 @@
     color: #0f172a;
     outline: none;
     transition: all 0.2s;
+  }
+
+  /* Especificidad alta para garantizar que el icono nunca tape el texto ingresado */
+  .buscador-container .input-con-icono-buscador input {
+    width: 100%;
+    padding: 10px 38px 10px 42px !important;
   }
 
   .buscador-container input:focus {
@@ -435,6 +812,39 @@
     box-shadow: none;
   }
 
+  .botones-exportacion-grupo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    flex-wrap: wrap;
+  }
+
+  .btn-pdf-numerico {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #0284c7;
+    color: white;
+    border: none;
+    padding: 11px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.92rem;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    box-shadow: 0 2px 4px rgba(2, 132, 199, 0.2);
+  }
+
+  .btn-pdf-numerico:hover:not(:disabled) {
+    background-color: #0369a1;
+  }
+
+  .btn-pdf-numerico:disabled {
+    background-color: #7dd3fc;
+    cursor: not-allowed;
+  }
+
   .btn-pdf {
     display: inline-flex;
     align-items: center;
@@ -442,14 +852,13 @@
     background-color: #dc2626;
     color: white;
     border: none;
-    padding: 11px 22px;
+    padding: 11px 20px;
     border-radius: 8px;
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     cursor: pointer;
     transition: background-color 0.2s, transform 0.1s;
     box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
-    margin-left: auto;
   }
 
   .btn-pdf:hover {
@@ -467,15 +876,74 @@
 
   .alerta-mensaje {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    align-items: flex-start;
+    gap: 12px;
     background-color: #eff6ff;
     border: 1px solid #bfdbfe;
     color: #1e40af;
-    padding: 14px 18px;
-    border-radius: 8px;
+    padding: 16px 20px;
+    border-radius: 10px;
     margin-bottom: 20px;
+  }
+
+  .icono-alerta {
+    font-size: 24px;
+    color: #2563eb;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+
+  .alerta-contenido {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .alerta-texto {
+    font-size: 0.95rem;
     font-weight: 500;
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .sugerencias-lapsos {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-top: 8px;
+    border-top: 1px dashed #bfdbfe;
+  }
+
+  .sugerencia-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #1e40af;
+  }
+
+  .btn-sugerencia {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: #ffffff;
+    border: 1px solid #93c5fd;
+    color: #1d4ed8;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-sugerencia:hover {
+    background: #dbeafe;
+    border-color: #3b82f6;
+  }
+
+  .btn-sugerencia .material-symbols-outlined {
+    font-size: 16px;
   }
 
   .alerta-exito {
@@ -704,16 +1172,6 @@
     padding: 3px 10px;
     border-radius: 6px;
     font-size: 0.85rem;
-  }
-
-  .badge-fecha {
-    display: inline-block;
-    background-color: #f1f5f9;
-    color: #475569;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 0.82rem;
-    font-family: monospace;
   }
 
   .td-cedula {

@@ -16,7 +16,8 @@
   // Datos principales
   let todasSuspensiones: SuspensionDetallada[] = [];
   let repososPacienteIndividual: SuspensionDetallada[] = [];
-  let cedulaBusqueda = '';
+  let busquedaPaciente = '';
+  $: cedulaBusqueda = busquedaPaciente; // retrocompatibilidad
   
   // Filtros reactivos
   let filtroEstado: 'todas' | 'activas' | 'reincidentes' = 'todas';
@@ -64,8 +65,9 @@
   }
 
   async function buscarRepososIndividual() {
-    if (!cedulaBusqueda.trim()) {
-      mensaje = 'Por favor ingrese un número de cédula para consultar el historial del paciente.';
+    const termino = busquedaPaciente.trim();
+    if (!termino) {
+      mensaje = 'Por favor ingrese la cédula o nombre y apellido del paciente para consultar su historial.';
       repososPacienteIndividual = [];
       return;
     }
@@ -73,16 +75,22 @@
     cargandoIndividual = true;
     mensaje = '';
     try {
-      repososPacienteIndividual = await obtenerSuspensionesPorCedula(cedulaBusqueda);
+      repososPacienteIndividual = await obtenerSuspensionesPorCedula(termino);
       if (repososPacienteIndividual.length === 0) {
-        mensaje = `No se encontraron registros de reposos o suspensiones médicas para la cédula ${cedulaBusqueda}.`;
+        mensaje = `No se encontraron registros de reposos o suspensiones médicas para "${termino}".`;
       }
     } catch (error) {
-      console.error('Error al buscar reposos por cédula:', error);
-      mensaje = 'Error al consultar la base de datos para la cédula especificada.';
+      console.error('Error al buscar reposos por paciente:', error);
+      mensaje = 'Error al consultar la base de datos para el paciente especificado.';
     } finally {
       cargandoIndividual = false;
     }
+  }
+
+  function limpiarBusquedaIndividual() {
+    busquedaPaciente = '';
+    repososPacienteIndividual = [];
+    mensaje = '';
   }
 
   function limpiarFiltroFechas() {
@@ -130,7 +138,23 @@
       .filter(s => Number(s.total_suspensiones_historicas || 0) >= 2)
       .map(s => s.cedula_paciente)
   ).size;
-  $: totalDiasAcumulados = todasSuspensiones.reduce((acc, s) => acc + Math.max(1, Number(s.dias_reposo || 1)), 0);
+
+  // Cálculo individual para el paciente consultado
+  let anioActual = new Date().getFullYear();
+  $: totalDiasAnualIndividual = repososPacienteIndividual
+    .filter(s => {
+      const f = s.fecha_inicio_suspension || s.fecha_consulta || '';
+      return f.startsWith(String(anioActual));
+    })
+    .reduce((acc, s) => acc + Math.max(1, Number(s.dias_reposo || 1)), 0);
+
+  $: totalDiasHistoricoIndividual = repososPacienteIndividual
+    .reduce((acc, s) => acc + Math.max(1, Number(s.dias_reposo || 1)), 0);
+
+  $: pacientesEnResultadoIndividual = Array.from(
+    new Set(repososPacienteIndividual.map(s => s.cedula_paciente))
+  );
+  $: esPacienteUnico = pacientesEnResultadoIndividual.length <= 1;
 
   // Generación y previsualización de PDF
   async function exportarReportePDF(listaParaPDF?: SuspensionDetallada[], tituloPersonalizado?: string) {
@@ -251,16 +275,6 @@
             <span class="metrica-sub">{totalReincidentesRegistros} suspensiones acumuladas</span>
           </div>
         </div>
-
-        <div class="card-metrica">
-          <div class="icono-metrica dias">
-            <span class="material-symbols-outlined">date_range</span>
-          </div>
-          <div class="info-metrica">
-            <span class="metrica-numero">{totalDiasAcumulados}</span>
-            <span class="metrica-etiqueta">Días de Reposo Otorgados</span>
-          </div>
-        </div>
       </div>
 
       <!-- Alertas de éxito o error -->
@@ -278,7 +292,7 @@
         </div>
       {/if}
 
-      <!-- Buscador Individual por Cédula con Alerta Automática de Reincidencia -->
+      <!-- Buscador Individual por Cédula o Nombre con Alerta Automática de Reincidencia -->
       <div class="buscador-card">
         <div class="buscador-header">
           <span class="material-symbols-outlined icono-seccion">person_search</span>
@@ -287,16 +301,26 @@
         
         <form on:submit|preventDefault={buscarRepososIndividual} class="buscador-container">
           <div class="input-grupo-ci">
-            <label for="ci_reposo">Cédula de Identidad (Titular o Beneficiario):</label>
+            <label for="ci_reposo">Cédula o Nombre y Apellido del Paciente:</label>
             <div class="input-con-icono">
-              <span class="material-symbols-outlined">badge</span>
+              <span class="material-symbols-outlined">person_search</span>
               <input 
                 id="ci_reposo"
                 type="text" 
-                placeholder="Ej. 12345678" 
-                bind:value={cedulaBusqueda} 
+                placeholder="Ej. 12345678 o Carlos Mendoza..." 
+                bind:value={busquedaPaciente} 
                 disabled={cargandoIndividual}
               />
+              {#if busquedaPaciente}
+                <button 
+                  type="button" 
+                  class="btn-limpiar-busqueda-ind" 
+                  on:click={limpiarBusquedaIndividual}
+                  title="Limpiar búsqueda"
+                >
+                  <span class="material-symbols-outlined">close</span>
+                </button>
+              {/if}
             </div>
           </div>
           <button type="submit" disabled={cargandoIndividual} class="btn-buscar">
@@ -308,39 +332,89 @@
         <!-- Resultados Individuales y Alerta de Reincidencia -->
         {#if repososPacienteIndividual.length > 0}
           <div class="resultado-individual-bloque">
-            <!-- ALERTA DESTACADA DE REINCIDENCIA INDIVIDUAL -->
-            {#if repososPacienteIndividual.length >= 2}
-              <div class="banner-alerta-reincidente">
-                <div class="icono-alerta-wrapper">
-                  <span class="material-symbols-outlined">warning</span>
+            {#if esPacienteUnico}
+              <!-- ALERTA DESTACADA DE REINCIDENCIA INDIVIDUAL (1 PACIENTE) -->
+              {#if repososPacienteIndividual.length >= 2}
+                <div class="banner-alerta-reincidente">
+                  <div class="icono-alerta-wrapper">
+                    <span class="material-symbols-outlined">warning</span>
+                  </div>
+                  <div class="texto-alerta">
+                    <h4>¡ALERTA DE REINCIDENCIA DETECTADA!</h4>
+                    <p>
+                      El paciente <strong>{repososPacienteIndividual[0].nombre_completo_paciente}</strong> (C.I. {repososPacienteIndividual[0].cedula_paciente}) es 
+                      <strong>REINCIDENTE</strong> con un total de <strong>{repososPacienteIndividual.length} suspensiones médicas</strong> registradas en el sistema.
+                    </p>
+                  </div>
+                  <button 
+                    type="button" 
+                    class="btn-imprimir-individual"
+                    on:click={() => exportarReportePDF(repososPacienteIndividual, `HISTORIAL INDIVIDUAL DE SUSPENSIONES - PACIENTE ${repososPacienteIndividual[0].cedula_paciente}`)}
+                  >
+                    <span class="material-symbols-outlined">print</span>
+                    <span>Imprimir Historial del Paciente</span>
+                  </button>
+                </div>
+              {:else}
+                <div class="banner-info-normal">
+                  <span class="material-symbols-outlined">info</span>
+                  <p>El paciente <strong>{repososPacienteIndividual[0].nombre_completo_paciente}</strong> registra únicamente <strong>1 suspensión médica</strong> (No reincidente).</p>
+                  <button 
+                    type="button" 
+                    class="btn-imprimir-individual"
+                    on:click={() => exportarReportePDF(repososPacienteIndividual, `HISTORIAL INDIVIDUAL DE SUSPENSIONES - PACIENTE ${repososPacienteIndividual[0].cedula_paciente}`)}
+                  >
+                    <span class="material-symbols-outlined">print</span>
+                    <span>Imprimir</span>
+                  </button>
+                </div>
+              {/if}
+
+              <!-- Resumen de Días de Reposo Asignados al Paciente en el Año Actual e Histórico -->
+              <div class="resumen-paciente-stats">
+                <div class="stat-item">
+                  <span class="material-symbols-outlined stat-icon">event_repeat</span>
+                  <div class="stat-info">
+                    <span class="stat-num">{repososPacienteIndividual.length}</span>
+                    <span class="stat-label">Total Suspensiones</span>
+                  </div>
+                </div>
+
+                <div class="stat-item destacado-anual">
+                  <span class="material-symbols-outlined stat-icon">calendar_today</span>
+                  <div class="stat-info">
+                    <span class="stat-num">{totalDiasAnualIndividual} días</span>
+                    <span class="stat-label">Días Acumulados Año {anioActual}</span>
+                  </div>
+                </div>
+
+                <div class="stat-item">
+                  <span class="material-symbols-outlined stat-icon">history</span>
+                  <div class="stat-info">
+                    <span class="stat-num">{totalDiasHistoricoIndividual} días</span>
+                    <span class="stat-label">Total Días Históricos</span>
+                  </div>
+                </div>
+              </div>
+            {:else}
+              <!-- BANNER PARA MÚLTIPLES COINCIDENCIAS POR BÚSQUEDA DE NOMBRE -->
+              <div class="banner-multiples-pacientes">
+                <div class="icono-alerta-wrapper multi">
+                  <span class="material-symbols-outlined">groups</span>
                 </div>
                 <div class="texto-alerta">
-                  <h4>¡ALERTA DE REINCIDENCIA DETECTADA!</h4>
+                  <h4>Se encontraron {repososPacienteIndividual.length} suspensiones para {pacientesEnResultadoIndividual.length} pacientes</h4>
                   <p>
-                    El paciente <strong>{repososPacienteIndividual[0].nombre_completo_paciente}</strong> (C.I. {repososPacienteIndividual[0].cedula_paciente}) es 
-                    <strong>REINCIDENTE</strong> con un total de <strong>{repososPacienteIndividual.length} suspensiones médicas</strong> registradas en el sistema.
+                    Coincidencias encontradas con la búsqueda "<strong>{busquedaPaciente}</strong>". A continuación se listan las suspensiones médicas registradas:
                   </p>
                 </div>
                 <button 
                   type="button" 
-                  class="btn-imprimir-individual"
-                  on:click={() => exportarReportePDF(repososPacienteIndividual, `HISTORIAL INDIVIDUAL DE SUSPENSIONES - PACIENTE ${repososPacienteIndividual[0].cedula_paciente}`)}
+                  class="btn-imprimir-individual multi-btn"
+                  on:click={() => exportarReportePDF(repososPacienteIndividual, `HISTORIAL DE SUSPENSIONES - BÚSQUEDA ${busquedaPaciente}`)}
                 >
                   <span class="material-symbols-outlined">print</span>
-                  <span>Imprimir Historial del Paciente</span>
-                </button>
-              </div>
-            {:else}
-              <div class="banner-info-normal">
-                <span class="material-symbols-outlined">info</span>
-                <p>El paciente <strong>{repososPacienteIndividual[0].nombre_completo_paciente}</strong> registra únicamente <strong>1 suspensión médica</strong> (No reincidente).</p>
-                <button 
-                  type="button" 
-                  class="btn-imprimir-individual"
-                  on:click={() => exportarReportePDF(repososPacienteIndividual, `HISTORIAL INDIVIDUAL DE SUSPENSIONES - PACIENTE ${repososPacienteIndividual[0].cedula_paciente}`)}
-                >
-                  <span class="material-symbols-outlined">print</span>
-                  <span>Imprimir</span>
+                  <span>Imprimir Resultados ({repososPacienteIndividual.length})</span>
                 </button>
               </div>
             {/if}
@@ -707,12 +781,6 @@
     color: #ea580c;
   }
 
-  .icono-metrica.dias {
-    background: #f8fafc;
-    color: #475569;
-    border: 1px solid #e2e8f0;
-  }
-
   .info-metrica {
     display: flex;
     flex-direction: column;
@@ -802,14 +870,17 @@
   .input-con-icono .material-symbols-outlined {
     position: absolute;
     left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
     color: #94a3b8;
     font-size: 20px;
     pointer-events: none;
+    z-index: 2;
   }
 
   .input-con-icono input {
     width: 100%;
-    padding: 10px 14px 10px 40px;
+    padding: 10px 38px 10px 42px !important;
     border: 1.5px solid #cbd5e1;
     border-radius: 8px;
     font-size: 0.92rem;
@@ -820,6 +891,33 @@
   .input-con-icono input:focus {
     border-color: #007aff;
     box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.12);
+  }
+
+  .btn-limpiar-busqueda-ind {
+    position: absolute;
+    right: 10px;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+  }
+
+  .btn-limpiar-busqueda-ind:hover {
+    color: #dc2626;
+    background-color: #fee2e2;
+  }
+
+  .btn-limpiar-busqueda-ind .material-symbols-outlined {
+    font-size: 16px;
+    position: static;
+    color: inherit;
+    pointer-events: auto;
   }
 
   .btn-buscar {
@@ -933,6 +1031,95 @@
   .banner-info-normal p {
     flex: 1;
     margin-left: 10px;
+  }
+
+  .banner-multiples-pacientes {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border: 2px solid #3b82f6;
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.12);
+  }
+
+  .icono-alerta-wrapper.multi {
+    background: #2563eb;
+  }
+
+  .banner-multiples-pacientes .texto-alerta h4 {
+    color: #1e40af;
+  }
+
+  .banner-multiples-pacientes .texto-alerta p {
+    color: #1e3a8a;
+  }
+
+  .btn-imprimir-individual.multi-btn {
+    color: #1e40af;
+    border-color: #2563eb;
+  }
+
+  .btn-imprimir-individual.multi-btn:hover {
+    background: #2563eb;
+    color: #ffffff;
+  }
+
+  /* Barra de Estadísticas de Reposo del Paciente Individual */
+  .resumen-paciente-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .stat-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .stat-item.destacado-anual {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+  }
+
+  .stat-icon {
+    font-size: 24px;
+    color: #475569;
+  }
+
+  .destacado-anual .stat-icon {
+    color: #0066cc;
+  }
+
+  .stat-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .stat-num {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+  }
+
+  .destacado-anual .stat-num {
+    color: #0066cc;
+  }
+
+  .stat-label {
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #64748b;
   }
 
   /* Toolbar de Filtros */

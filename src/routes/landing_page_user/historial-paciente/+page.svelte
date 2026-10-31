@@ -7,10 +7,13 @@
   import Footer from '$lib/components/Footer.svelte';
 
   let usuarioActual: { id: string; nombre: string; rol: string } | null = null;
-  let cedula = '';
+  let busquedaPaciente = '';
+  $: cedula = busquedaPaciente; // retrocompatibilidad
   let historial: any[] = [];
   let mensaje = '';
   let cargando = false;
+
+  $: pacientesEnHistorial = Array.from(new Set(historial.map(h => h.nombre_completo_paciente)));
 
   onMount(() => {
     const sesion = localStorage.getItem('usuario_sesion');
@@ -22,8 +25,9 @@
   });
 
   async function buscarHistorial() {
-    if (!cedula.trim()) {
-      mensaje = 'Por favor ingrese una cédula válida para consultar el historial.';
+    const termino = busquedaPaciente.trim();
+    if (!termino) {
+      mensaje = 'Por favor ingrese la cédula o nombre y apellido del paciente para consultar su historial.';
       historial = [];
       return;
     }
@@ -32,16 +36,42 @@
     mensaje = '';
 
     try {
-      const resultado = await obtenerHistorialPorCedula(cedula);
+      const resultado = await obtenerHistorialPorCedula(termino);
       historial = resultado as any[];
       if (historial.length === 0) {
-        mensaje = 'No se encontraron registros médicos para la cédula ingresada.';
+        mensaje = `No se encontraron registros médicos para "${termino}".`;
       }
     } catch (error) {
       console.error('Error al consultar historial:', error);
       mensaje = 'Ocurrió un error al consultar los registros en la base de datos.';
     } finally {
       cargando = false;
+    }
+  }
+
+  function limpiarBusqueda() {
+    busquedaPaciente = '';
+    historial = [];
+    mensaje = '';
+  }
+
+  function formatearFecha(fechaStr: string | null | undefined): string {
+    if (!fechaStr) return 'N/D';
+    try {
+      const d = new Date(fechaStr);
+      return d.toLocaleDateString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit', year: 'numeric' });
+    } catch {
+      return fechaStr || 'N/D';
+    }
+  }
+
+  function formatearHora(fechaStr: string | null | undefined): string {
+    if (!fechaStr) return '';
+    try {
+      const d = new Date(fechaStr);
+      return d.toLocaleTimeString('es-VE', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit', hour12: true });
+    } catch {
+      return '';
     }
   }
 </script>
@@ -59,19 +89,29 @@
     <div class="contenido-modulo">
       <div class="header-seccion">
         <h2>Historial Médico del Paciente</h2>
-        <p class="subtitulo">Consulte los registros de consultas diagnósticas, médicos tratantes y patologías por número de cédula.</p>
+        <p class="subtitulo">Consulte los registros de consultas diagnósticas, médicos tratantes y patologías por cédula o nombre y apellido.</p>
       </div>
       
       <div class="buscador-card">
         <form on:submit|preventDefault={buscarHistorial} class="buscador-container">
           <div class="input-grupo">
-            <span class="material-symbols-outlined icono-input">search</span>
+            <span class="material-symbols-outlined icono-input">person_search</span>
             <input 
               type="text" 
-              bind:value={cedula} 
-              placeholder="Ingrese cédula del titular o beneficiario (ej: V-12345678)..." 
+              bind:value={busquedaPaciente} 
+              placeholder="Ingrese cédula o nombre y apellido del paciente (ej: 12345678 o Carlos Mendoza)..." 
               disabled={cargando}
             />
+            {#if busquedaPaciente}
+              <button 
+                type="button" 
+                class="btn-limpiar-historial" 
+                on:click={limpiarBusqueda}
+                title="Limpiar búsqueda"
+              >
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            {/if}
           </div>
           <button type="submit" class="btn-buscar" disabled={cargando}>
             <span class="material-symbols-outlined">{cargando ? 'hourglass_top' : 'manage_search'}</span>
@@ -91,13 +131,18 @@
         <div class="tabla-container">
           <div class="tabla-header-info">
             <span class="material-symbols-outlined icono-tabla">clinical_notes</span>
-            <span>Registros médicos encontrados: <strong>{historial.length}</strong></span>
+            <span>
+              Registros médicos encontrados: <strong>{historial.length}</strong>
+              {#if pacientesEnHistorial.length > 1}
+                &nbsp;—&nbsp;({pacientesEnHistorial.length} pacientes coincidentes)
+              {/if}
+            </span>
           </div>
           <div class="tabla-responsive">
             <table>
               <thead>
                 <tr>
-                  <th>Fecha</th>
+                  <th>Fecha y Hora</th>
                   <th>Paciente</th>
                   <th>Cédula</th>
                   <th>Especialidad</th>
@@ -109,7 +154,13 @@
                 {#each historial as item}
                   <tr>
                     <td>
-                      <span class="badge-fecha">{item.fecha_consulta}</span>
+                      <div class="fecha-hora-badge">
+                        <span class="fecha-texto">{item.fecha_formateada || formatearFecha(item.fecha_consulta)}</span>
+                        <span class="hora-texto" title="Hora local oficial de Venezuela (VET)">
+                          <span class="material-symbols-outlined icono-reloj">schedule</span>
+                          {item.hora_formateada || formatearHora(item.fecha_creacion_consulta || item.fecha_consulta)}
+                        </span>
+                      </div>
                     </td>
                     <td class="texto-bold">{item.nombre_completo_paciente}</td>
                     <td>{item.ci_titular_paciente || item.ci_beneficiario_paciente}</td>
@@ -160,11 +211,12 @@
     color: #94a3b8;
     font-size: 20px;
     pointer-events: none;
+    z-index: 2;
   }
 
   .buscador-container input {
     width: 100%;
-    padding: 11px 14px 11px 44px;
+    padding: 11px 38px 11px 44px !important;
     border: 1.5px solid #cbd5e1;
     border-radius: 8px;
     font-size: 0.94rem;
@@ -173,6 +225,33 @@
     outline: none;
     transition: all 0.2s ease;
     font-family: inherit;
+  }
+
+  .btn-limpiar-historial {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 50%;
+    transition: all 0.2s;
+    z-index: 2;
+  }
+
+  .btn-limpiar-historial:hover {
+    color: #dc2626;
+    background-color: #fee2e2;
+  }
+
+  .btn-limpiar-historial .material-symbols-outlined {
+    font-size: 16px;
   }
 
   .buscador-container input:focus {
@@ -275,15 +354,35 @@
     color: #0f172a;
   }
 
-  .badge-fecha {
-    background-color: #f1f5f9;
-    color: #475569;
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 0.82rem;
+  .fecha-hora-badge {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .fecha-texto {
+    font-weight: 700;
+    color: #0055b3;
+    font-size: 0.88rem;
+  }
+
+  .hora-texto {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.78rem;
     font-weight: 600;
-    white-space: nowrap;
-    border: 1px solid #e2e8f0;
+    color: #475569;
+    background-color: #f1f5f9;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid #cbd5e1;
+    width: fit-content;
+  }
+
+  .icono-reloj {
+    font-size: 13px;
+    color: #0284c7;
   }
 
   .badge-especialidad {

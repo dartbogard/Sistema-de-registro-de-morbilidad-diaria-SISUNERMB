@@ -1,5 +1,6 @@
 import { getDb } from '$lib/database';
 import type { CrearConsultaInput } from '$lib/types/consulta';
+import { verificarReposoActivoConDoctor } from '$lib/queries/suspensiones';
 
 interface CrearConsultaConReposoInput extends CrearConsultaInput {
   tiene_reposo?: boolean;
@@ -27,7 +28,11 @@ export async function crearConsulta(datos: CrearConsultaConReposoInput): Promise
       (SELECT id_usuario FROM public."USUARIO" LIMIT 1), 
       (SELECT id_paciente FROM public."PACIENTE" WHERE TRIM(CAST(ci_beneficiario_paciente AS TEXT)) = TRIM($3) OR TRIM(CAST(ci_titular_paciente AS TEXT)) = TRIM($3) LIMIT 1), 
       $4::uuid, 
-      $5::DATE, 
+      CASE 
+        WHEN $5::DATE = (CURRENT_DATE AT TIME ZONE 'America/Caracas') 
+          THEN (NOW() AT TIME ZONE 'America/Caracas')
+        ELSE ($5::DATE + (NOW() AT TIME ZONE 'America/Caracas')::TIME)
+      END, 
       $6
     ) RETURNING id_consulta`,
     [
@@ -45,12 +50,25 @@ export async function crearConsulta(datos: CrearConsultaConReposoInput): Promise
     throw new Error("No se pudo obtener el ID de la consulta creada.");
   }
 
-  // 2. Si marcó que aplica reposo, guardamos la suspensión
+  // 2. Si marcó que aplica reposo, verificamos y guardamos la suspensión
   const tieneReposo = Boolean(datos.tiene_reposo);
   const inicioSusp = datos.fecha_inicio_suspension?.trim();
   const finSusp = datos.fecha_final_suspension?.trim();
 
   if (tieneReposo && inicioSusp && finSusp) {
+    // Validar rigurosamente que el paciente no tenga ya un reposo activo con el mismo doctor
+    const verificacion = await verificarReposoActivoConDoctor(
+      cedulaPaciente,
+      datos.doctor_consulta,
+      inicioSusp
+    );
+
+    if (verificacion.tieneReposoActivo && verificacion.reposoActivo) {
+      throw new Error(
+        `Control de reposos: El paciente ya cuenta con un reposo activo emitido por el doctor ${verificacion.reposoActivo.doctor} vigente hasta el ${verificacion.reposoActivo.fecha_final_suspension}. No se permite superponer un nuevo reposo con el mismo médico tratante.`
+      );
+    }
+
     await db.execute(
       `INSERT INTO public."SUSPENSION" (
         consulta_suspension,
@@ -93,16 +111,23 @@ export async function obtenerHistorialConsultas() {
   );
 }
 
-export async function obtenerHistorialPorCedula(cedula: string) {
+export async function obtenerHistorialPorCedula(terminoBusqueda: string) {
   const db = await getDb();
-  const cedulaLimpia = cedula.trim();
+  const terminoLimpio = (terminoBusqueda || '').trim();
   
-  if (!cedulaLimpia) return [];
+  if (!terminoLimpio) return [];
+
+  const soloNumeros = terminoLimpio.replace(/^[VvEeJjGg]-?/, '').trim();
+  const conPrefijoV = 'V-' + soloNumeros;
+  const conPrefijoE = 'E-' + soloNumeros;
 
   return await db.select(
     `SELECT 
       c.id_consulta,
       c.fecha_consulta,
+      c.fecha_creacion_consulta,
+      TO_CHAR(COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) AT TIME ZONE 'America/Caracas', 'DD/MM/YYYY') AS fecha_formateada,
+      TO_CHAR(COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) AT TIME ZONE 'America/Caracas', 'HH12:MI AM') AS hora_formateada,
       c.diagnostico_consulta,
       p.nombre_completo_paciente,
       p.ci_titular_paciente,
@@ -113,21 +138,34 @@ export async function obtenerHistorialPorCedula(cedula: string) {
      INNER JOIN public."PACIENTE" p ON c.paciente_consulta = p.id_paciente
      INNER JOIN public."DOCTOR" d ON c.doctor_consulta = d.id_doctor
      INNER JOIN public."ESPECIALIDAD" e ON c.especialidad_consulta = e.id_especialidad
-     WHERE (p.ci_titular_paciente = $1 OR p.ci_beneficiario_paciente = $1)
+     WHERE (
+       p.ci_titular_paciente = $1 OR p.ci_beneficiario_paciente = $1
+       OR p.ci_titular_paciente = $2 OR p.ci_beneficiario_paciente = $2
+       OR p.ci_titular_paciente = $3 OR p.ci_beneficiario_paciente = $3
+       OR p.ci_titular_paciente = $4 OR p.ci_beneficiario_paciente = $4
+       OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || $1 || '%'
+       OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || $1 || '%'
+       OR p.nombre_completo_paciente ILIKE '%' || $1 || '%'
+       OR p.nombre_titular_paciente ILIKE '%' || $1 || '%'
+     )
        AND c.fecha_eliminacion_consulta IS NULL
-     ORDER BY c.fecha_consulta DESC`,
-    [cedulaLimpia] 
+     ORDER BY COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) DESC`,
+    [terminoLimpio, soloNumeros, conPrefijoV, conPrefijoE] 
   );
 }
 
+export const obtenerHistorialPorPaciente = obtenerHistorialPorCedula;
+
 /**
  * Obtiene el reporte de morbilidad agrupado por diagnóstico y especialidad en un rango de fechas,
- * incluyendo los nombres de los pacientes atendidos para cada diagnóstico.
+ * con soporte para filtrar por cédula o nombre/apellido del paciente.
  */
-export async function obtenerReporteMorbilidad(fechaInicio: string, fechaFin: string) {
+export async function obtenerReporteMorbilidad(fechaInicio?: string, fechaFin?: string, filtroPaciente?: string) {
   const db = await getDb();
   
-  if (!fechaInicio || !fechaFin) return [];
+  const fInicio = fechaInicio?.trim() || null;
+  const fFin = fechaFin?.trim() || null;
+  const fPaciente = filtroPaciente?.trim() || null;
 
   return await db.select(
     `SELECT 
@@ -138,26 +176,38 @@ export async function obtenerReporteMorbilidad(fechaInicio: string, fechaFin: st
      FROM public."CONSULTA" c
      LEFT JOIN public."PACIENTE" p ON c.paciente_consulta = p.id_paciente
      INNER JOIN public."ESPECIALIDAD" e ON c.especialidad_consulta = e.id_especialidad
-     WHERE c.fecha_consulta::DATE BETWEEN $1::DATE AND $2::DATE
+     WHERE ($1::TEXT IS NULL OR c.fecha_consulta::DATE >= $1::DATE)
+       AND ($2::TEXT IS NULL OR c.fecha_consulta::DATE <= $2::DATE)
+       AND (
+         $3::TEXT IS NULL 
+         OR p.nombre_completo_paciente ILIKE '%' || $3 || '%'
+         OR p.nombre_titular_paciente ILIKE '%' || $3 || '%'
+         OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || $3 || '%'
+         OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || $3 || '%'
+       )
        AND c.fecha_eliminacion_consulta IS NULL
      GROUP BY c.diagnostico_consulta, e.tipo_especialidad
      ORDER BY total_casos DESC`,
-    [fechaInicio, fechaFin]
+    [fInicio, fFin, fPaciente]
   );
 }
 
 /**
- * Obtiene el detalle individual de cada consulta en el rango de fechas con datos del paciente y doctor.
+ * Obtiene el detalle individual de cada consulta en el rango de fechas con datos del paciente y doctor,
+ * con soporte para filtrar por cédula o nombre/apellido del paciente.
  */
-export async function obtenerConsultasDetalladas(fechaInicio: string, fechaFin: string) {
+export async function obtenerConsultasDetalladas(fechaInicio?: string, fechaFin?: string, filtroPaciente?: string) {
   const db = await getDb();
   
-  if (!fechaInicio || !fechaFin) return [];
+  const fInicio = fechaInicio?.trim() || null;
+  const fFin = fechaFin?.trim() || null;
+  const fPaciente = filtroPaciente?.trim() || null;
 
   return await db.select(
     `SELECT 
       c.id_consulta,
-      TO_CHAR(c.fecha_consulta, 'YYYY-MM-DD') AS fecha_consulta,
+      TO_CHAR(COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) AT TIME ZONE 'America/Caracas', 'YYYY-MM-DD') AS fecha_consulta,
+      TO_CHAR(COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) AT TIME ZONE 'America/Caracas', 'HH12:MI AM') AS hora_consulta,
       c.diagnostico_consulta AS diagnostico,
       COALESCE(p.nombre_completo_paciente, 'Sin registrar') AS paciente,
       COALESCE(p.ci_beneficiario_paciente, p.ci_titular_paciente, 'S/C') AS cedula,
@@ -167,10 +217,18 @@ export async function obtenerConsultasDetalladas(fechaInicio: string, fechaFin: 
      LEFT JOIN public."PACIENTE" p ON c.paciente_consulta = p.id_paciente
      INNER JOIN public."ESPECIALIDAD" e ON c.especialidad_consulta = e.id_especialidad
      LEFT JOIN public."DOCTOR" d ON c.doctor_consulta = d.id_doctor
-     WHERE c.fecha_consulta::DATE BETWEEN $1::DATE AND $2::DATE
+     WHERE ($1::TEXT IS NULL OR c.fecha_consulta::DATE >= $1::DATE)
+       AND ($2::TEXT IS NULL OR c.fecha_consulta::DATE <= $2::DATE)
+       AND (
+         $3::TEXT IS NULL 
+         OR p.nombre_completo_paciente ILIKE '%' || $3 || '%'
+         OR p.nombre_titular_paciente ILIKE '%' || $3 || '%'
+         OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || $3 || '%'
+         OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || $3 || '%'
+       )
        AND c.fecha_eliminacion_consulta IS NULL
-     ORDER BY c.fecha_consulta DESC, c.id_consulta DESC`,
-    [fechaInicio, fechaFin]
+     ORDER BY COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) DESC, c.id_consulta DESC`,
+    [fInicio, fFin, fPaciente]
   );
 }
 

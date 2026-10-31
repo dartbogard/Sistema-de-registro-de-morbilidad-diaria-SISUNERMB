@@ -106,7 +106,8 @@ export async function generarPDFSuspensiones(datos: DatosReporteSuspensionesPDF)
   const totalRegistros = datos.suspensiones.length;
   const totalReincidentes = datos.suspensiones.filter(s => Number(s.total_suspensiones_historicas || 0) >= 2).length;
   const totalActivas = datos.suspensiones.filter(s => s.es_activa).length;
-  const totalDias = datos.suspensiones.reduce((acc, s) => acc + Math.max(1, Number(s.dias_reposo || 1)), 0);
+  const pacientesUnicos = new Set(datos.suspensiones.map(s => s.cedula_paciente));
+  const esReporteIndividual = pacientesUnicos.size === 1;
 
   // Columna 1 del recuadro
   doc.setFontSize(8);
@@ -145,7 +146,7 @@ export async function generarPDFSuspensiones(datos: DatosReporteSuspensionesPDF)
   doc.setTextColor(22, 101, 52);
   doc.text(`${totalActivas} en curso`, col2X + 34, cajaY + 14);
 
-  // Columna 3 del recuadro (Alertas de Reincidencia)
+  // Columna 3 del recuadro (Alertas de Reincidencia / Pacientes)
   const col3X = pageWidth - margen - 78;
   doc.setTextColor(51, 65, 85);
   doc.text('Casos Reincidentes:', col3X, cajaY + 6);
@@ -159,9 +160,20 @@ export async function generarPDFSuspensiones(datos: DatosReporteSuspensionesPDF)
   }
 
   doc.setTextColor(51, 65, 85);
-  doc.text('Total Días Otorgados:', col3X, cajaY + 14);
-  doc.setTextColor(0, 85, 179);
-  doc.text(`${totalDias} día(s) acumulados`, col3X + 33, cajaY + 14);
+  if (esReporteIndividual) {
+    const anioActual = new Date().getFullYear();
+    const diasAnioActual = datos.suspensiones
+      .filter(s => (s.fecha_inicio_suspension || '').startsWith(String(anioActual)))
+      .reduce((acc, s) => acc + Math.max(1, Number(s.dias_reposo || 1)), 0);
+
+    doc.text(`Días Año ${anioActual}:`, col3X, cajaY + 14);
+    doc.setTextColor(0, 85, 179);
+    doc.text(`${diasAnioActual} día(s) en ${anioActual}`, col3X + 33, cajaY + 14);
+  } else {
+    doc.text('Pacientes Distintos:', col3X, cajaY + 14);
+    doc.setTextColor(0, 85, 179);
+    doc.text(`${pacientesUnicos.size} paciente(s)`, col3X + 33, cajaY + 14);
+  }
 
   // Tabla Principal de Suspensiones
   y = cajaY + cajaHeight + 5;

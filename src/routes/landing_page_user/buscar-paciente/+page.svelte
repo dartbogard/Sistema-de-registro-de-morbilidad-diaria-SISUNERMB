@@ -23,8 +23,9 @@
   });
 
   async function manejarBusqueda() {
-    if (!cedulaBusqueda.trim()) {
-      mensajeError = 'Por favor ingrese un número de cédula válido para buscar.';
+    const termino = cedulaBusqueda.trim();
+    if (!termino) {
+      mensajeError = 'Por favor ingrese la cédula o nombre y apellido del paciente para buscar.';
       resultadosPacientes = [];
       return;
     }
@@ -33,10 +34,10 @@
     mensajeError = '';
 
     try {
-      resultadosPacientes = await buscarPacientePorCedula(cedulaBusqueda);
+      resultadosPacientes = await buscarPacientePorCedula(termino);
       
       if (resultadosPacientes.length === 0) {
-        mensajeError = 'No se encontró ningún paciente registrado con la cédula ingresada.';
+        mensajeError = `No se encontró ningún paciente registrado coincidente con "${termino}".`;
       }
     } catch (error) {
       console.error('Error al realizar la búsqueda:', error);
@@ -44,6 +45,12 @@
     } finally {
       cargando = false;
     }
+  }
+
+  function limpiarBusqueda() {
+    cedulaBusqueda = '';
+    resultadosPacientes = [];
+    mensajeError = '';
   }
 </script>
 
@@ -60,19 +67,29 @@
     <div class="contenido-modulo">
       <div class="header-seccion">
         <h2>Búsqueda de Pacientes</h2>
-        <p class="subtitulo">Consulte los datos filiatorios, condición de titularidad y beneficiarios adscritos en el sistema.</p>
+        <p class="subtitulo">Consulte los datos filiatorios, condición de titularidad y beneficiarios adscritos por cédula o nombre y apellido.</p>
       </div>
       
       <div class="buscador-card">
         <form on:submit|preventDefault={manejarBusqueda} class="buscador-container">
           <div class="input-grupo">
-            <span class="material-symbols-outlined icono-input">search</span>
+            <span class="material-symbols-outlined icono-input">person_search</span>
             <input 
               type="text" 
               bind:value={cedulaBusqueda} 
-              placeholder="Ingrese número de cédula del titular o beneficiario..." 
+              placeholder="Ingrese cédula o nombre y apellido del paciente..." 
               disabled={cargando}
             />
+            {#if cedulaBusqueda}
+              <button 
+                type="button" 
+                class="btn-limpiar-buscar" 
+                on:click={limpiarBusqueda}
+                title="Limpiar búsqueda"
+              >
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            {/if}
           </div>
           <button 
             type="submit" 
@@ -165,11 +182,12 @@
     color: #94a3b8;
     font-size: 20px;
     pointer-events: none;
+    z-index: 2;
   }
 
   .buscador-container input {
     width: 100%;
-    padding: 11px 14px 11px 44px;
+    padding: 11px 38px 11px 44px !important;
     border: 1.5px solid #cbd5e1;
     border-radius: 8px;
     font-size: 0.94rem;
@@ -178,6 +196,33 @@
     outline: none;
     transition: all 0.2s ease;
     font-family: inherit;
+  }
+
+  .btn-limpiar-buscar {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 50%;
+    transition: all 0.2s;
+    z-index: 2;
+  }
+
+  .btn-limpiar-buscar:hover {
+    color: #dc2626;
+    background-color: #fee2e2;
+  }
+
+  .btn-limpiar-buscar .material-symbols-outlined {
+    font-size: 16px;
   }
 
   .buscador-container input:focus {

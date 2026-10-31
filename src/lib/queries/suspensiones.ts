@@ -111,11 +111,101 @@ export async function obtenerSuspensionesActivas(): Promise<SuspensionDetallada[
   return await db.select<SuspensionDetallada[]>(query);
 }
 
-export async function obtenerSuspensionesPorCedula(cedula: string): Promise<SuspensionDetallada[]> {
+export async function obtenerSuspensionesPorCedula(terminoBusqueda: string): Promise<SuspensionDetallada[]> {
   const db = await getDb();
-  const cedulaLimpiada = String(cedula).trim();
+  const termino = String(terminoBusqueda).trim();
   const query = `${BASE_QUERY_SUSPENSIONES} 
-    AND (TRIM(CAST(p.ci_beneficiario_paciente AS TEXT)) = TRIM($1) OR TRIM(CAST(p.ci_titular_paciente AS TEXT)) = TRIM($1))
+    AND (
+      TRIM(CAST(p.ci_beneficiario_paciente AS TEXT)) = TRIM($1)
+      OR TRIM(CAST(p.ci_titular_paciente AS TEXT)) = TRIM($1)
+      OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || TRIM($1) || '%'
+      OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || TRIM($1) || '%'
+      OR p.nombre_completo_paciente ILIKE '%' || TRIM($1) || '%'
+      OR p.nombre_titular_paciente ILIKE '%' || TRIM($1) || '%'
+    )
     ORDER BY s.fecha_inicio_suspension DESC`;
-  return await db.select<SuspensionDetallada[]>(query, [cedulaLimpiada]);
+  return await db.select<SuspensionDetallada[]>(query, [termino]);
+}
+
+export const obtenerSuspensionesPorPaciente = obtenerSuspensionesPorCedula;
+
+export interface ReposoActivoInfo {
+  id_suspension: string;
+  fecha_inicio_suspension: string;
+  fecha_final_suspension: string;
+  doctor: string;
+  diagnostico: string;
+  dias_restantes: number;
+}
+
+/**
+ * Verifica si un paciente ya cuenta con un reposo médico activo o vigente emitido por el mismo doctor.
+ * Esto previene la asignación de reposos superpuestos no permitidos.
+ */
+export async function verificarReposoActivoConDoctor(
+  cedulaPaciente: string,
+  idDoctor: string | number,
+  fechaInicioNueva?: string
+): Promise<{
+  tieneReposoActivo: boolean;
+  reposoActivo?: ReposoActivoInfo;
+}> {
+  if (!cedulaPaciente || !idDoctor) {
+    return { tieneReposoActivo: false };
+  }
+
+  const db = await getDb();
+  const cedulaLimpiada = String(cedulaPaciente).trim();
+
+  try {
+    const params: any[] = [idDoctor, cedulaLimpiada];
+    let condicionFecha = `
+      AND (
+        (CURRENT_DATE AT TIME ZONE 'America/Caracas') BETWEEN s.fecha_inicio_suspension AND s.fecha_final_suspension
+        OR s.fecha_final_suspension >= (CURRENT_DATE AT TIME ZONE 'America/Caracas')
+    `;
+
+    if (fechaInicioNueva) {
+      params.push(fechaInicioNueva);
+      condicionFecha += ` OR (s.fecha_inicio_suspension <= $3::date AND s.fecha_final_suspension >= $3::date) `;
+    }
+
+    condicionFecha += ` ) `;
+
+    const rows = await db.select<any[]>(
+      `SELECT 
+         s.id_suspension,
+         TO_CHAR(s.fecha_inicio_suspension, 'YYYY-MM-DD') AS fecha_inicio_suspension,
+         TO_CHAR(s.fecha_final_suspension, 'YYYY-MM-DD') AS fecha_final_suspension,
+         d.nombre_doctor || ' ' || d.apellido_doctor AS doctor,
+         COALESCE(c.diagnostico_consulta, 'Sin diagnóstico') AS diagnostico,
+         (s.fecha_final_suspension - (CURRENT_DATE AT TIME ZONE 'America/Caracas'))::int AS dias_restantes
+       FROM public."SUSPENSION" s
+       INNER JOIN public."CONSULTA" c ON s.consulta_suspension = c.id_consulta
+       INNER JOIN public."PACIENTE" p ON c.paciente_consulta = p.id_paciente
+       INNER JOIN public."DOCTOR" d ON s.doctor_suspension = d.id_doctor
+       WHERE s.fecha_eliminacion_suspension IS NULL
+         AND s.doctor_suspension = $1::uuid
+         AND (
+           TRIM(CAST(p.ci_beneficiario_paciente AS TEXT)) = TRIM($2)
+           OR TRIM(CAST(p.ci_titular_paciente AS TEXT)) = TRIM($2)
+         )
+         ${condicionFecha}
+       ORDER BY s.fecha_final_suspension DESC
+       LIMIT 1`,
+      params
+    );
+
+    if (rows && rows.length > 0) {
+      return {
+        tieneReposoActivo: true,
+        reposoActivo: rows[0]
+      };
+    }
+
+    return { tieneReposoActivo: false };
+  } catch (err) {
+    console.error('Error al verificar reposo activo con doctor:', err);
+    return { tieneReposoActivo: false };
+  }
 }

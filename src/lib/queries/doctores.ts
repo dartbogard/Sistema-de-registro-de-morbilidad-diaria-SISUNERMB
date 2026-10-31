@@ -1,6 +1,42 @@
 import { getDb } from '$lib/database';
 import type { Doctor, CrearDoctorInput } from '$lib/types/doctor';
 
+export interface DoctorDetallado {
+  id_doctor: string;
+  nombre_doctor: string;
+  apellido_doctor: string;
+  nombre_completo: string;
+  ci_doctor: string;
+  ci_profesional_doctor: string;
+  especialidades: string;
+  total_consultas: number;
+}
+
+/**
+ * Obtiene todos los doctores en existencia con sus especialidades vinculadas y total de consultas atendidas.
+ */
+export async function obtenerDoctoresDetallados(): Promise<DoctorDetallado[]> {
+  const db = await getDb();
+  return await db.select<DoctorDetallado[]>(
+    `SELECT 
+       d.id_doctor,
+       d.nombre_doctor,
+       d.apellido_doctor,
+       d.nombre_doctor || ' ' || d.apellido_doctor AS nombre_completo,
+       COALESCE(d.ci_doctor, 'S/C') AS ci_doctor,
+       COALESCE(d.ci_profesional_doctor, 'S/N') AS ci_profesional_doctor,
+       COALESCE(STRING_AGG(DISTINCT e.tipo_especialidad, ', '), 'General / Sin vincular') AS especialidades,
+       COUNT(DISTINCT c.id_consulta)::int AS total_consultas
+     FROM public."DOCTOR" d
+     LEFT JOIN public."DOCTOR_ESPECIALIDAD" de ON d.id_doctor = de.id_doctor
+     LEFT JOIN public."ESPECIALIDAD" e ON de.id_especialidad = e.id_especialidad AND e.fecha_eliminacion_especialidad IS NULL
+     LEFT JOIN public."CONSULTA" c ON d.id_doctor = c.doctor_consulta AND c.fecha_eliminacion_consulta IS NULL
+     WHERE d.fecha_eliminacion_doctor IS NULL
+     GROUP BY d.id_doctor, d.nombre_doctor, d.apellido_doctor, d.ci_doctor, d.ci_profesional_doctor
+     ORDER BY d.apellido_doctor ASC, d.nombre_doctor ASC`
+  );
+}
+
 /**
  * Obtiene todos los doctores activos.
  */

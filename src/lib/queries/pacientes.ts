@@ -95,11 +95,18 @@ export async function buscarPacientePorCedula(cedula: string): Promise<Paciente[
        OR ci_titular_paciente = $2 OR ci_beneficiario_paciente = $2
        OR ci_titular_paciente = $3 OR ci_beneficiario_paciente = $3
        OR ci_titular_paciente = $4 OR ci_beneficiario_paciente = $4
+       OR CAST(ci_beneficiario_paciente AS TEXT) ILIKE '%' || $1 || '%'
+       OR CAST(ci_titular_paciente AS TEXT) ILIKE '%' || $1 || '%'
+       OR nombre_completo_paciente ILIKE '%' || $1 || '%'
+       OR nombre_titular_paciente ILIKE '%' || $1 || '%'
      )
-     AND fecha_eliminacion_paciente IS NULL`,
+     AND fecha_eliminacion_paciente IS NULL
+     ORDER BY nombre_completo_paciente ASC`,
     [cedulaLimpia, soloNumeros, conPrefijoV, conPrefijoE]
   );
 }
+
+export const buscarPaciente = buscarPacientePorCedula;
 
 
 // para mas tarde 2. En la interfaz gráfica (src/routes/pacientes/+page.svelte)
