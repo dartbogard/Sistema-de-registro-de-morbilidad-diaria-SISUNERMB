@@ -84,11 +84,20 @@ export async function buscarPacientePorCedula(cedula: string): Promise<Paciente[
   // Si el usuario no escribió nada, retornamos arreglo vacío
   if (!cedulaLimpia) return [];
 
+  const soloNumeros = cedulaLimpia.replace(/^[VvEeJjGg]-?/, '').trim();
+  const conPrefijoV = 'V-' + soloNumeros;
+  const conPrefijoE = 'E-' + soloNumeros;
+
   return await db.select<Paciente[]>(
     `SELECT * FROM public."PACIENTE"
-     WHERE (ci_titular_paciente = $1 OR ci_beneficiario_paciente = $1)
-       AND fecha_eliminacion_paciente IS NULL`,
-    [cedulaLimpia]
+     WHERE (
+       ci_titular_paciente = $1 OR ci_beneficiario_paciente = $1
+       OR ci_titular_paciente = $2 OR ci_beneficiario_paciente = $2
+       OR ci_titular_paciente = $3 OR ci_beneficiario_paciente = $3
+       OR ci_titular_paciente = $4 OR ci_beneficiario_paciente = $4
+     )
+     AND fecha_eliminacion_paciente IS NULL`,
+    [cedulaLimpia, soloNumeros, conPrefijoV, conPrefijoE]
   );
 }
 

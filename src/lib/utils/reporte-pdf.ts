@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { LOGO_UNERMB_BASE64, LOGO_SISUNERMB_BASE64 } from './pdf-logos';
 
 export interface ItemMorbilidad {
   diagnostico: string;
@@ -58,6 +59,14 @@ export async function generarPDFMorbilidad(datos: DatosReportePDF): Promise<Resu
   doc.setFillColor(44, 62, 80); // Azul oscuro decorativo
   doc.rect(0, 6, pageWidth, 1.5, 'F');
 
+  // Logotipos oficiales UNERMB (izquierda) y SISUNERMB (derecha)
+  try {
+    doc.addImage(LOGO_UNERMB_BASE64, 'PNG', margen, 8, 16, 18);
+    doc.addImage(LOGO_SISUNERMB_BASE64, 'PNG', pageWidth - margen - 18, 9, 18, 16);
+  } catch (errLogos) {
+    console.warn('Advertencia al incrustar logotipos en el reporte:', errLogos);
+  }
+
   // Encabezado institucional
   let y = 14;
   doc.setFont('helvetica', 'bold');
@@ -73,7 +82,7 @@ export async function generarPDFMorbilidad(datos: DatosReportePDF): Promise<Resu
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9.5);
   doc.setTextColor(71, 85, 105);
-  doc.text('SERVICIO MÉDICO ODONTOLÓGICO UNIVERSITARIO - SISUNERMB', pageWidth / 2, y, { align: 'center' });
+  doc.text('SISTEMA INTEGRAL DE SALUD - SISUNERMB', pageWidth / 2, y, { align: 'center' });
 
   y += 6;
   doc.setDrawColor(203, 213, 225);
@@ -124,7 +133,7 @@ export async function generarPDFMorbilidad(datos: DatosReportePDF): Promise<Resu
   doc.setFont('helvetica', 'bold');
   doc.text('Generado por:', margen + 4, cajaY + 18);
   doc.setFont('helvetica', 'normal');
-  doc.text(datos.usuarioGenerador || 'Personal Médico SISUNERMB', margen + 34, cajaY + 18);
+  doc.text(datos.usuarioGenerador || 'Personal Administrativo SISUNERMB', margen + 34, cajaY + 18);
 
   // Columna derecha del recuadro
   const colDerX = pageWidth / 2 + 10;

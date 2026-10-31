@@ -1,341 +1,439 @@
-
 <script lang="ts">
+  import { goto } from '$app/navigation';
+  import { obtenerUsuarioPorNombre } from '$lib/queries/usuarios';
+  import Navbar from '$lib/components/Navbar.svelte';
+  import Footer from '$lib/components/Footer.svelte';
 
-import { goto } from '$app/navigation';
+  let nombreUsuario: string = '';
+  let passwordUsuario: string = '';
+  let cargando: boolean = false;
+  let mensajeError: string = '';
 
-import { obtenerUsuarioPorNombre } from '$lib/queries/usuarios';
-
-// Variables reactivas para los campos del formulario
-
-let nombreUsuario: string = '';
-let passwordUsuario: string = '';
-
-// Estados de la interfaz
-
-let cargando: boolean = false;
-let mensajeError: string = '';
-
-
-async function manejarLogin() {
-mensajeError = '';
-
-// Cuando colocas ! justo antes de una variable en una condición o expresión, 
-// estás invirtiendo su valor booleano. En este caso si falta alguno de los campos surge el error
-if (!nombreUsuario.trim() || !passwordUsuario.trim()) {
-mensajeError = 'Por favor complete todos los campos.';
-return;
-}
-
-cargando = true;
-
-try {
-// Búsqueda en la base de datos PostgreSQL
-const usuario = await obtenerUsuarioPorNombre(nombreUsuario.trim());
-
-if (!usuario) {
-mensajeError = 'El usuario ingresado no existe.';
-return;
-}
-
-// Validación simple de contraseña
-// (sujeto a mejoras con hash)
-if (usuario.password_usuario !== passwordUsuario) {
-mensajeError = 'Contraseña incorrecta.';
-return;
-}
-
-// Guardar sesión básica o estado global (ej. en localStorage si es app de escritorio)
-localStorage.setItem('usuario_sesion', JSON.stringify({
-id: usuario.id_usuario,
-nombre: usuario.nombre_usuario,
-rol: usuario.rol_usuario
-}));
-
-// Redirigir al panel principal (Dashboard pero en este caso landing page user)
-goto('/landing_page_user');
-
-} catch (error) {
-
-console.error('Error durante la autenticación:', error);
-
-mensajeError = 'Error de conexión con la base de datos.';
-
-} finally {
-cargando = false;
-}
-}
+  async function manejarLogin() {
+    mensajeError = '';
+    if (!nombreUsuario.trim() || !passwordUsuario.trim()) {
+      mensajeError = 'Por favor complete todos los campos requeridos.';
+      return;
+    }
+    cargando = true;
+    try {
+      const usuario = await obtenerUsuarioPorNombre(nombreUsuario.trim());
+      if (!usuario) {
+        mensajeError = 'El usuario ingresado no existe en el sistema.';
+        return;
+      }
+      if (usuario.password_usuario !== passwordUsuario) {
+        mensajeError = 'Contraseña incorrecta. Verifique sus datos.';
+        return;
+      }
+      localStorage.setItem('usuario_sesion', JSON.stringify({
+        id: usuario.id_usuario,
+        nombre: usuario.nombre_usuario,
+        rol: usuario.rol_usuario
+      }));
+      goto('/landing_page_user');
+    } catch (error) {
+      console.error('Error durante la autenticación:', error);
+      mensajeError = 'Error de conexión con la base de datos PostgreSQL.';
+    } finally {
+      cargando = false;
+    }
+  }
 </script>
-<!-- Inyección de fuentes e iconos en el <head> de la aplicación -->
+
 <svelte:head>
-  <title>Login - SISUNERMB</title>
-  <!-- Fuentes Google -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-  <!-- Material Symbols / Iconos -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=person,password_2" />
+  <title>Acceso al Sistema – SISUNERMB</title>
 </svelte:head>
 
-<!-- Contenedor Raíz (Sustituye al <body>) -->
-<div class="page-container">
-  
-  <!-- Header de la pagina -->
-  <nav class="nav-login">
-    <a href="https://unermb.web.ve" target="_blank" rel="noreferrer" class="image-wrapper">
-      <img class="img-nav-login" src="/cintillo-unermb.png" alt="Cintillo UNERMB" />
-    </a>
-    <div class="image-wrapper">
-      <img class="img-nav-login" src="/sisunermb.png" alt="Logo SISUNERMB" />
+<!-- Cabecera Institucional Unificada -->
+<Navbar esLogin={true} />
+
+<!-- Área Central de Login con Escenario Compuesto HD y Tarjeta -->
+<main class="login-main-area">
+  <!-- Fondo Decorativo Institucional HD (Funciona 100% Offline) -->
+  <div class="login-bg-stage">
+    <!-- Lado Izquierdo: Retrato Institucional de Don Rafael María Baralt -->
+    <div class="baralt-portrait-container">
+      <div class="baralt-frame">
+        <img src="/baralt-hd.jpg" alt="Don Rafael María Baralt" class="baralt-img" />
+        <div class="baralt-vignette"></div>
+      </div>
+      <div class="baralt-caption">
+        <span class="baralt-name">Don Rafael María Baralt</span>
+        <span class="baralt-dates">1810 – 1860 · Epónimo Universitario</span>
+      </div>
     </div>
-    <h1>BIENVENIDO AL REGISTRO MEDICO SISUNERMB</h1>
-  </nav>
 
-  <!-- Imagen de fondo -->
-  <img class="img-background" src="/background.jpg" alt="Fondo SISUNERMB" />
-
-  <!-- Inicia Formulario -->
-  <div class="div-form-login">
-    <form on:submit|preventDefault={manejarLogin}>
-
-      <!-- Alerta de mensaje de error si existe -->
-      {#if mensajeError}
-        <p class="error-message">{mensajeError}</p>
-      {/if}
-
-      <!-- Pide Usuario -->
-      <div class="div-inner-form-login">
-        <label for="usuario">Usuario:</label>
-        <div class="div-icon-wrapper">
-          <span class="material-symbols-outlined icon-user">person</span>
-          <input 
-            bind:value={nombreUsuario}
-            placeholder="Ingrese su Usuario" 
-            type="text" 
-            id="usuario" 
-            name="username" 
-            required 
-            autocomplete="username" 
-            disabled={cargando}
-          />
-        </div>
-      </div>
-
-      <!-- Pide Contraseña -->
-      <div class="div-inner-form-login">
-        <label for="contrasena">Contraseña:</label>
-        <div class="div-icon-wrapper">
-          <span class="material-symbols-outlined icon-user">password_2</span>
-          <input 
-            bind:value={passwordUsuario}
-            placeholder="Ingrese su Contraseña" 
-            type="password" 
-            id="contrasena" 
-            name="password" 
-            required 
-            autocomplete="current-password" 
-            disabled={cargando}
-          />
-        </div>
-      </div>
-
-      <!-- Boton Inicio de Sesion -->
-      <div class="div-inner-form-login">
-        <button type="submit" disabled={cargando}>
-          {cargando ? 'Ingresando...' : 'Iniciar Sesión'}
-        </button>
-      </div>
-    </form>
+    <!-- Lado Derecho: Marca de Agua Institucional UNERMB -->
+    <div class="unermb-watermark-container">
+      <img src="/unermb-logo.png" alt="Escudo UNERMB" class="unermb-watermark-img" />
+    </div>
   </div>
 
-  <!-- Footer -->
-  <footer class="footer-login">
-    <p>Créditos: Miguel Contreras, Arturo Pérez, Omar Oberto Big 2026</p>
-  </footer>
+  <!-- Tarjeta de Login Centrada -->
+  <div class="login-card">
+    <div class="login-header">
+      <!-- Logos Oficiales Protagonistas: UNERMB y SISUNERMB -->
+      <div class="login-brand-logos">
+        <div class="brand-badge-item" title="Universidad Nacional Experimental Rafael María Baralt">
+          <img src="/unermb-logo.png" alt="Escudo Oficial UNERMB" class="card-logo-unermb" />
+          <span class="brand-badge-label">UNERMB</span>
+        </div>
+        <div class="brand-divider"></div>
+        <div class="brand-badge-item" title="Sistema Integral de Salud">
+          <img src="/sisunermb.png" alt="Logo Oficial SISUNERMB" class="card-logo-sisunermb" />
+          <span class="brand-badge-label">SISUNERMB</span>
+        </div>
+      </div>
 
-</div>
+      <h2>Acceso Institucional</h2>
+      <p class="login-subtitle">Sistema Integral de Salud – SISUNERMB</p>
+      <span class="login-org-tag">Universidad Nacional Experimental "Rafael María Baralt"</span>
+    </div>
+
+    <form on:submit|preventDefault={manejarLogin} class="login-form">
+      {#if mensajeError}
+        <div class="alerta-error">
+          <span class="material-symbols-outlined">error</span>
+          <p>{mensajeError}</p>
+        </div>
+      {/if}
+
+      <div class="campo-grupo">
+        <label for="usuario">Usuario del Sistema</label>
+        <div class="input-con-icono">
+          <span class="material-symbols-outlined">person</span>
+          <input
+            bind:value={nombreUsuario}
+            type="text"
+            id="usuario"
+            name="username"
+            placeholder="Ingrese su usuario..."
+            required
+            autocomplete="username"
+            disabled={cargando}
+          />
+        </div>
+      </div>
+
+      <div class="campo-grupo">
+        <label for="contrasena">Contraseña de Acceso</label>
+        <div class="input-con-icono">
+          <span class="material-symbols-outlined">key</span>
+          <input
+            bind:value={passwordUsuario}
+            type="password"
+            id="contrasena"
+            name="password"
+            placeholder="Ingrese su contraseña..."
+            required
+            autocomplete="current-password"
+            disabled={cargando}
+          />
+        </div>
+      </div>
+
+      <button type="submit" class="btn-login-submit" disabled={cargando}>
+        {#if cargando}
+          <span class="material-symbols-outlined spin">progress_activity</span>
+          <span>Verificando credenciales...</span>
+        {:else}
+          <span class="material-symbols-outlined">login</span>
+          <span>Ingresar al Sistema</span>
+        {/if}
+      </button>
+    </form>
+  </div>
+</main>
+
+<!-- Footer Institucional Unificado -->
+<Footer />
 
 <style>
-  /* Resets locales y contenedor principal */
-  :global(*) {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
-  .page-container {
-    min-height: 100vh;
-    height: 100vh;
-    font-family: 'Google Sans', sans-serif;
-    background-color: ghostwhite;
-    display: grid;
-    grid-template-rows: 8% 1fr auto;
-    grid-template-areas: 
-      "header"
-      "form"
-      "footer";
-  }
-
-  /* HEADER */
-  nav {
-    background-color: #007aff;
-    grid-area: header;    
-    display: flex;
-    justify-content: flex-start;
-    align-items: center;
-    width: 100%;
-    height: 100%;
-    border-bottom: 4px solid #01458d;
-  }
-
-  .image-wrapper {
+  .login-main-area {
+    flex: 1;
+    min-height: 0;
+    position: relative;
     display: flex;
     align-items: center;
+    justify-content: center;
+    padding: 24px;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 45%, #134074 0%, #0b2545 60%, #061527 100%);
+  }
+
+  /* Escenario de Fondo Decorativo HD */
+  .login-bg-stage {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: flex;
     justify-content: space-between;
-    width: 20%;
-    height: 100%;
+    align-items: center;
+    padding: 0 6%;
+    overflow: hidden;
   }
 
-  .img-nav-login {    
-    display: block;
-    width: 100%;
-    max-height: 100%;
-    object-fit: contain;
+  /* Retrato Baralt a la izquierda */
+  .baralt-portrait-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    opacity: 0.38;
+    transition: opacity 0.3s ease;
   }
 
-  h1 {
-    color: #fff;
-    text-align: right;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 300;
-    letter-spacing: -1px;
-    width: 100%;
-    padding-right: 3%;
+  .baralt-frame {
+    position: relative;
+    width: 270px;
+    height: 360px;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    border: 2px solid rgba(255, 255, 255, 0.18);
   }
 
-  /* BODY Y FONDO */
-  .img-background {
+  .baralt-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    opacity: 1;
-    grid-area: form;
+    object-position: top center;
+    filter: grayscale(25%) contrast(1.15);
   }
 
-  /* FORMULARIO */
-  .div-form-login {
-    grid-area: form;
-    background-color: ghostwhite;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;    
-    width: 100%;
-    max-width: 350px;
-    height: 80%;
-    border-radius: 8px;
-    margin: auto;
-    z-index: 10; /* Asegura que el formulario quede sobre la imagen de fondo */
-  }
-
-  .div-inner-form-login {
-    display: flex;
-    flex-direction: column;
-    margin: 15px 0;
-    align-items: flex-start;
-    width: 100%;
-  }
-
-  label {
-    margin-bottom: 10px;
-  }
-
-  .div-icon-wrapper {
-    position: relative;
-    display: inline-block;
-    width: 100%;
-  }
-
-  .div-icon-wrapper .icon-user {
+  .baralt-vignette {
     position: absolute;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #666;
-    pointer-events: none;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(11, 37, 69, 0.15) 0%, rgba(11, 37, 69, 0.8) 100%);
   }
 
-  input {
-    width: 100%;
-    padding: 8px 5px 8px 40px;
-    background-color: #d8cece;
-    outline: none;
-    border: none;
-    border-bottom: 2px solid rgba(0, 0, 0, 0);
-    transition: all 0.3s ease;
+  .baralt-caption {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
   }
 
-  input:focus {
-    border: none;
-    border-bottom: #007aff solid 2px;
-    color: #000;
-    background-color: #fff;
+  .baralt-name {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #e2e8f0;
+    letter-spacing: 0.4px;
   }
 
-  input:hover {
-    border: none;    
-    color: #000;
-    background-color: #fff;
-    border-bottom: #007aff solid 2px;
+  .baralt-dates {
+    font-size: 0.72rem;
+    color: #94a3b8;
   }
 
-  input::placeholder {
-    color: #000;
-    opacity: 0.5;
-  }
-
-  button {
-    background-color: #fff;
-    border: #007aff solid 1px;
-    margin: auto;
-    padding: 8px 16px;
-    cursor: pointer;
-    border-radius: 4px;
-    font-weight: 600;
-  }
-
-  button:hover {
-    background-color: #007aff;
-    border-color: #fff;
-    color: #fff;
-    transition-duration: 0.3s;
-  }
-
-  /* FOOTER */
-  .footer-login {
-    grid-area: footer;
-    background-color: #007aff;
-    height: 30px;
+  /* Marca de agua UNERMB a la derecha */
+  .unermb-watermark-container {
+    opacity: 0.12;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
-    font-size: 0.85rem;
-  }
-  .error-message {
-    color: #d32f2f;
-    background-color: #ffebee;
-    border: 1px solid #ef9a9a;
-    padding: 8px;
-    border-radius: 4px;
-    font-size: 0.85rem;
-    text-align: center;
-    width: 100%;
-    margin-bottom: 10px;
   }
 
-  button:disabled {
-    background-color: #ccc;       /* sugerido por ia, confirmar don miguel */
-    border-color: #aaa;
-    color: #666;
+  .unermb-watermark-img {
+    width: 400px;
+    height: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 0 40px rgba(255, 255, 255, 0.3));
+  }
+
+  /* Tarjeta de Inicio de Sesión */
+  .login-card {
+    position: relative;
+    z-index: 10;
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 34px 38px;
+    width: 100%;
+    max-width: 430px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+  }
+
+  .login-header {
+    text-align: center;
+    margin-bottom: 22px;
+  }
+
+  /* Logos oficiales en la tarjeta */
+  .login-brand-logos {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding: 10px 18px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+
+  .brand-badge-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .card-logo-unermb {
+    height: 50px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.12));
+  }
+
+  .card-logo-sisunermb {
+    height: 50px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.12));
+  }
+
+  .brand-badge-label {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    color: #0b2545;
+  }
+
+  .brand-divider {
+    width: 1.5px;
+    height: 46px;
+    background-color: #cbd5e1;
+  }
+
+  .login-header h2 {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.3px;
+    margin-bottom: 3px;
+  }
+
+  .login-subtitle {
+    font-size: 0.84rem;
+    color: #0066cc;
+    font-weight: 600;
+  }
+
+  .login-org-tag {
+    display: block;
+    font-size: 0.72rem;
+    color: #64748b;
+    margin-top: 2px;
+  }
+
+  .login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .campo-grupo {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .campo-grupo label {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #334155;
+  }
+
+  .input-con-icono {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .input-con-icono .material-symbols-outlined {
+    position: absolute;
+    left: 14px;
+    font-size: 20px;
+    color: #94a3b8;
+    pointer-events: none;
+  }
+
+  .input-con-icono input {
+    width: 100%;
+    padding: 11px 14px 11px 44px;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 10px;
+    font-size: 0.92rem;
+    color: #0f172a;
+    background-color: #f8fafc;
+    outline: none;
+    font-family: inherit;
+    transition: all 0.2s ease;
+  }
+
+  .input-con-icono input:focus {
+    border-color: #007aff;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.14);
+  }
+
+  .input-con-icono input:disabled {
+    background-color: #f1f5f9;
+    color: #94a3b8;
     cursor: not-allowed;
+  }
+
+  .btn-login-submit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: linear-gradient(135deg, #0055b3 0%, #007aff 100%);
+    color: #ffffff;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(0, 122, 255, 0.3);
+    margin-top: 4px;
+  }
+
+  .btn-login-submit:hover:not(:disabled) {
+    background: linear-gradient(135deg, #004494 0%, #0066d6 100%);
+    box-shadow: 0 6px 18px rgba(0, 122, 255, 0.4);
+    transform: translateY(-1px);
+  }
+
+  .btn-login-submit:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  @media (max-width: 992px) {
+    .baralt-portrait-container,
+    .unermb-watermark-container {
+      display: none;
+    }
   }
 </style>

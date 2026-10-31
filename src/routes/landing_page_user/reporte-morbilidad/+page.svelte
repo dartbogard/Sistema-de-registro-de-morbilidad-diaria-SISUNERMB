@@ -3,6 +3,9 @@
   import { goto } from '$app/navigation';
   import { obtenerReporteMorbilidad, obtenerConsultasDetalladas } from '$lib/queries/consultas';
   import { generarPDFMorbilidad, type ItemMorbilidad, type ConsultaDetallada } from '$lib/utils/reporte-pdf';
+  import Navbar from '$lib/components/Navbar.svelte';
+  import Sidebar from '$lib/components/Sidebar.svelte';
+  import Footer from '$lib/components/Footer.svelte';
 
   let usuarioActual: { id: string; nombre: string; rol: string } | null = null;
   let fechaInicio = '';
@@ -98,7 +101,7 @@
       const resultado = await generarPDFMorbilidad({
         fechaInicio,
         fechaFin,
-        usuarioGenerador: usuarioActual?.nombre || 'Personal Médico SISUNERMB',
+        usuarioGenerador: usuarioActual?.nombre || 'Personal Administrativo SISUNERMB',
         morbilidad: reporteMorbilidad,
         consultasDetalladas
       });
@@ -134,86 +137,13 @@
 </script>
 
 <svelte:head>
-  <title>SISUNERMB - Reporte de Morbilidad</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <title>Reporte de Morbilidad – SISUNERMB</title>
 </svelte:head>
 
-<nav class="nav-landing-user">
-  <div class="div-inner-nav">
-    <a href="https://unermb.web.ve" class="image-wrapper">
-      <img class="img-nav-login" src="/cintillo-unermb.png" alt="Cintillo UNERMB" />
-    </a>
-    <div class="image-wrapper">
-      <img class="img-nav-login" src="/sisunermb.png" alt="Logo SISUNERMB" />
-    </div>
-  </div>
-  <h1>BIENVENIDO AL REGISTRO MEDICO SISUNERMB</h1>
-</nav>
+<Navbar />
 
 <div class="div-grid-wrapper">
-  
-  <aside class="sidebar-landing-user">
-    <div class="div-img-sidebar-wrapper" style="background-image: url('/background.jpg');">
-      <h3>{usuarioActual ? usuarioActual.nombre : 'Cargando...'}</h3>
-    </div>
-
-    <div class="div-modulos-wrapper">
-      <p>Módulos</p>
-      
-      <ul class="ul-sidebar">
-        <li>
-          <a href="/landing_page_user/crear-paciente" class="btn-menu-item">
-            <span class="material-symbols-outlined">person</span>
-            <span>Registrar Paciente</span>
-          </a>
-        </li>
-
-        <li>
-          <a href="/landing_page_user/crear-consulta" class="btn-menu-item">
-            <span class="material-symbols-outlined">medication</span>
-            <span>Consulta Diagnóstico</span>
-          </a>
-        </li>
-
-        <li>
-          <a href="/landing_page_user/historial-paciente" class="btn-menu-item">
-            <span class="material-symbols-outlined">history</span>
-            <span>Historial Paciente</span>
-          </a>
-        </li>
-
-        <li>
-          <a href="/landing_page_user/reposos-suspensiones" class="btn-menu-item">
-            <span class="material-symbols-outlined">calendar_clock</span>
-            <span>Reposos/Suspensiones</span>
-          </a>
-        </li>
-
-        <li>
-          <a href="/landing_page_user/reporte-morbilidad" class="btn-menu-item activo">
-            <span class="material-symbols-outlined">patient_list</span>
-            <span>Reporte Morbilidad</span>
-          </a>
-        </li>
-
-        <li>
-          <a href="/landing_page_user/buscar-paciente" class="btn-menu-item">
-            <span class="material-symbols-outlined">search</span>
-            <span>Búsqueda Paciente</span>
-          </a>
-        </li>
-
-        <li>
-          <button type="button" on:click={cerrarSesion} class="btn-menu-item btn-logout">
-            <span class="material-symbols-outlined">logout</span>
-            <span>Cerrar Sesión</span>
-          </button>
-        </li>
-      </ul>
-    </div>
-  </aside>
+  <Sidebar moduloActivo="reporte-morbilidad" {usuarioActual} />
 
   <main class="main-landing-user">
     <div class="contenido-modulo">
@@ -314,18 +244,6 @@
               >
                 <span class="material-symbols-outlined tab-icono">patient_list</span>
                 <span>Detalle de Consultas ({consultasDetalladas.length})</span>
-              </button>
-            </div>
-
-            <div class="header-acciones">
-              <button 
-                type="button" 
-                on:click={descargarReportePDF} 
-                disabled={exportandoPDF} 
-                class="btn-pdf-sm"
-              >
-                <span class="material-symbols-outlined">download</span>
-                <span>Descargar Reporte PDF</span>
               </button>
             </div>
           </div>
@@ -446,187 +364,9 @@
   </div>
 {/if}
 
-<footer class="footer-landing-user">
-  <p>Créditos: Miguel Contreras, Arturo Pérez, Omar Oberto Big 2026</p>
-</footer>
+<Footer />
 
 <style>
-  :global(*) {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
-  :global(html, body) {
-    height: 100vh;
-    font-family: 'Google Sans', sans-serif;
-    background-color: ghostwhite;
-    overflow: hidden;
-  }
-
-  :global(body) {
-    display: grid;
-    grid-template-rows: 60px 1fr 30px;
-    grid-template-areas: 
-      "header"
-      "body"
-      "footer";
-  }
-
-  nav {
-    background-color: #007aff;
-    grid-area: header;    
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    padding: 0 20px;
-  }
-
-  .div-inner-nav {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    height: 100%;
-  }
-
-  .image-wrapper {
-    display: flex;
-    align-items: center;
-    height: 100%;
-  }
-
-  .img-nav-login {    
-    display: block;
-    height: 40px;
-    object-fit: contain;
-  }
-
-  h1 {
-    color: #fff;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 1.1rem;
-    font-weight: 500;
-  }
-
-  .div-grid-wrapper {
-    grid-area: body;
-    display: grid;
-    grid-template-columns: 240px 1fr;
-    grid-template-areas: "sidebar main";
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .sidebar-landing-user {
-    grid-area: sidebar;
-    background-color: #2c3e50;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    color: #fff;
-    overflow-y: auto;
-    position: relative;
-    z-index: 50;
-  }
-
-  .div-img-sidebar-wrapper {
-    width: 100%;
-    height: 120px;
-    background-position: center;
-    background-size: cover;
-    background-repeat: no-repeat;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    padding-bottom: 12px;
-    flex-shrink: 0;
-  }
-
-  .div-img-sidebar-wrapper h3 {
-    background-color: rgba(0, 0, 0, 0.6);
-    padding: 4px 12px;
-    border-radius: 4px;
-    font-size: 0.95rem;
-  }
-
-  .div-modulos-wrapper {
-    width: 100%;
-    padding: 15px 0;
-    flex-grow: 1;
-  }
-
-  .div-modulos-wrapper p {
-    padding-left: 20px;
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    color: #bdc3c7;
-    margin-bottom: 10px;
-    font-weight: 600;
-  }
-
-  .ul-sidebar {
-    list-style: none;
-    width: 100%;
-  }
-
-  .btn-menu-item {
-    text-decoration: none;
-    color: #ecf0f1;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-    padding: 12px 20px;
-    background: none;
-    border: none;
-    font: inherit;
-    cursor: pointer;
-    text-align: left;
-    transition: background-color 0.2s ease, color 0.2s ease;
-  }
-
-  .btn-menu-item:hover,
-  .btn-menu-item.activo {
-    background-color: #34495e;
-    color: #3498db;
-  }
-
-  .btn-menu-item span.material-symbols-outlined {
-    font-size: 20px;
-    flex-shrink: 0;
-  }
-
-  .main-landing-user {
-    grid-area: main;
-    background-color: #f1f5f9;
-    padding: 30px;
-    overflow-y: auto;
-    height: 100%;
-  }
-
-  .contenido-modulo {
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-
-  .header-seccion {
-    margin-bottom: 20px;
-  }
-
-  .contenido-modulo h2 {
-    font-size: 1.8rem;
-    color: #1e293b;
-    font-weight: 700;
-    font-family: 'Montserrat', sans-serif;
-  }
-
-  .subtitulo {
-    color: #64748b;
-    font-size: 0.95rem;
-    margin-top: 4px;
-  }
-
   .buscador-card {
     background: #ffffff;
     padding: 24px;
@@ -717,30 +457,6 @@
   }
 
   .btn-pdf:disabled {
-    background-color: #f87171;
-    cursor: not-allowed;
-  }
-
-  .btn-pdf-sm {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background-color: #dc2626;
-    color: white;
-    border: none;
-    padding: 7px 14px;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 0.85rem;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-
-  .btn-pdf-sm:hover {
-    background-color: #b91c1c;
-  }
-
-  .btn-pdf-sm:disabled {
     background-color: #f87171;
     cursor: not-allowed;
   }
@@ -1123,13 +839,4 @@
     border: none;
   }
 
-  .footer-landing-user {
-    grid-area: footer;
-    background-color: #007aff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-size: 0.85rem;
-  }
 </style>

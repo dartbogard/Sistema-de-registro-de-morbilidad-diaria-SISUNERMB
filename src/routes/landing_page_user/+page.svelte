@@ -1,315 +1,338 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import Navbar from '$lib/components/Navbar.svelte';
+  import Sidebar from '$lib/components/Sidebar.svelte';
+  import Footer from '$lib/components/Footer.svelte';
 
-  // Variable para almacenar los datos del usuario autenticado
   let usuarioActual: { id: string; nombre: string; rol: string } | null = null;
+  
+  const fechaHoy = new Date().toLocaleDateString('es-VE', {
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric'
+  });
 
   onMount(() => {
-    // Recuperar los datos de sesión guardados durante el Login
     const sesion = localStorage.getItem('usuario_sesion');
     if (sesion) {
       usuarioActual = JSON.parse(sesion);
     } else {
-      // Si no hay sesión activa, redirigir al Login
       goto('/');
     }
   });
 
-  function cerrarSesion() {
-    localStorage.removeItem('usuario_sesion');
-    goto('/');
-  }
+  const modulos = [
+    { 
+      href: '/landing_page_user/crear-consulta',      
+      icono: 'stethoscope',    
+      titulo: 'Consulta Diagnóstica',  
+      desc: 'Atención médica diaria, asignación de diagnóstico y reposos laborales.' 
+    },
+    { 
+      href: '/landing_page_user/historial-paciente',  
+      icono: 'history',        
+      titulo: 'Historial de Paciente', 
+      desc: 'Búsqueda y consulta de expedientes de atenciones previas por cédula.' 
+    },
+    { 
+      href: '/landing_page_user/reposos-suspensiones',
+      icono: 'event_busy',     
+      titulo: 'Reposos / Suspensiones',
+      desc: 'Control y seguimiento de suspensiones médicas activas y acumuladas.' 
+    },
+    { 
+      href: '/landing_page_user/reporte-morbilidad',  
+      icono: 'bar_chart_4_bars',
+      titulo: 'Reporte de Morbilidad', 
+      desc: 'Estadísticas epidemiológicas, filtrado por fechas y exportación a PDF.' 
+    },
+    { 
+      href: '/landing_page_user/buscar-paciente',     
+      icono: 'manage_search',  
+      titulo: 'Búsqueda de Paciente',  
+      desc: 'Localización rápida de datos patronales y filiación universitaria.' 
+    },
+    { 
+      href: '/landing_page_user/modulo-creación',     
+      icono: 'admin_panel_settings',  
+      titulo: 'Módulo Administrativo', 
+      desc: 'Gestión y registro de pacientes, especialistas médicos, especialidades y usuarios.' 
+    }
+  ];
 </script>
 
-<!-- Inyección de metadatos, fuentes e iconos en el <head> -->
 <svelte:head>
-  <title>SISUNERMB - Panel Principal</title>
-  <!-- Links de fuentes -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-  <!-- Links de iconos -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+  <title>Panel Principal – SISUNERMB</title>
 </svelte:head>
 
-<!-- Header de la pagina -->
-<nav class="nav-landing-user">
-  <div class="div-inner-nav">
-    <a href="https://unermb.web.ve" class="image-wrapper">
-      <img class="img-nav-login" src="/cintillo-unermb.png" alt="Cintillo UNERMB" />
-    </a>
-    <div class="image-wrapper">
-      <img class="img-nav-login" src="/sisunermb.png" alt="Logo SISUNERMB" />
-    </div>
-  </div>
-  <h1>BIENVENIDO AL REGISTRO MEDICO SISUNERMB</h1>
-</nav>
+<Navbar />
 
-<!-- Div Grid Contenedor de Sidebar y Secciones -->
 <div class="div-grid-wrapper">
-  
-  <!-- Sidebar lateral -->
-  <aside class="sidebar-landing-user">
-    <!-- Peticion de Nombre de usuario en BD e Icono de usuario o Foto de Perfil -->
-    <div class="div-img-sidebar-wrapper" style="background-image: url('/background.jpg');">
-      <!-- Muestra el nombre recuperado de la sesión o un texto por defecto -->
-      <h3>{usuarioActual ? usuarioActual.nombre : 'Cargando...'}</h3>
-    </div>
+  <Sidebar moduloActivo="inicio" {usuarioActual} />
 
-    <!-- Modulos interactivos -->
-    <div class="div-modulos-wrapper">
-      <p>Modulos</p>
-      
-      <!-- Listado de Modulos en la pagina -->
-      <ul class="ul-sidebar">
-        <!-- Registrar Paciente -->
-         <a href="landing_page_user/crear-paciente">
-          <li>
-            <span class="material-symbols-outlined">person</span>
-            Registrar Paciente
-          </li>
-        </a>
-
-        <!-- Consulta Diagnóstico -->
-        <a href="/landing_page_user/crear-consulta">
-          <li>
-            <span class="material-symbols-outlined">medication</span>
-            Consulta Diagnóstico
-          </li>
-        </a>
-
-        <!-- Historial Paciente -->
-        <a href="/landing_page_user/historial-paciente">
-          <li>
-            <span class="material-symbols-outlined">history</span>
-            Historial Paciente
-          </li>
-        </a>
-
-        <!-- Reposos/Suspensiones -->
-        <a href="#reposos-suspensiones">
-          <li>
-            <span class="material-symbols-outlined">calendar_clock</span>
-            Reposos/Suspensiones
-          </li>
-        </a>
-
-        <!-- Reporte Morbilidad -->
-        <a href="#reporte-morbilidad">
-          <li>
-            <span class="material-symbols-outlined">patient_list</span>
-            Reporte Morbilidad
-          </li>
-        </a>
-
-        <!-- Busqueda Paciente -->
-        <a href="landing_page_user/buscar-paciente">
-          <li>
-            <span class="material-symbols-outlined">search</span>
-            Búsqueda Paciente
-          </li>
-        </a>
-
-        <!-- modulo creación -->
-        <a href="landing_page_user/modulo-creación">
-          <li>
-            <span class="material-symbols-outlined">search</span>
-            Módulo Creación Administrativo
-          </li>
-        </a>
-
-
-        <!-- Cerrar Sesion -->
-        <button type="button" on:click={cerrarSesion} class="btn-logout-link">
-          <li>
-            <span class="material-symbols-outlined">logout</span>
-            Cerrar Sesión
-          </li>
-        </button>
-      </ul>
-    </div>
-  </aside>
-
-  <!-- Seccion Principal -->
   <main class="main-landing-user">
-    <!-- Aquí irá el contenido dinámico de cada módulo -->
-     <p>pene</p>
-  </main>
+    <div class="contenido-modulo dashboard-area">
 
+      <!-- Banner Institucional de Bienvenida -->
+      <div class="banner-bienvenida">
+        <div class="banner-texto">
+          <span class="banner-sub">SISTEMA INTEGRAL DE SALUD UNIVERSITARIO</span>
+          <h2>Bienvenido, {usuarioActual ? usuarioActual.nombre : 'Personal Administrativo'}</h2>
+          <p class="banner-fecha">{fechaHoy}</p>
+        </div>
+        <div class="banner-emblema">
+          <img src="/sisunermb.png" alt="SISUNERMB" class="banner-logo-img" />
+          <div class="banner-badge-info">
+            <span class="badge-org">UNERMB</span>
+            <span class="badge-status">Servicio Activo</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cabecera de la sección de módulos -->
+      <div class="seccion-intro">
+        <div>
+          <h3>Módulos del Sistema</h3>
+          <p class="seccion-sub">Seleccione un módulo a continuación o utilice el menú lateral para acceder directamente.</p>
+        </div>
+      </div>
+
+      <!-- Grid de Módulos -->
+      <div class="grid-modulos-cards">
+        {#each modulos as mod}
+          <a href={mod.href} class="card-modulo">
+            <div class="card-icono-wrapper">
+              <span class="material-symbols-outlined">{mod.icono}</span>
+            </div>
+            <div class="card-info">
+              <h4>{mod.titulo}</h4>
+              <p>{mod.desc}</p>
+            </div>
+            <span class="material-symbols-outlined card-flecha">arrow_forward</span>
+          </a>
+        {/each}
+      </div>
+
+      <!-- Barra informativa institucional -->
+      <div class="nota-institucional">
+        <img src="/unermb-logo.png" alt="Escudo UNERMB" class="nota-unermb-logo" />
+        <div class="nota-texto">
+          <strong>Sistema Integral de Salud de la UNERMB (SISUNERMB)</strong>
+          <p>Para soporte técnico o asistencia en el registro de morbilidad diaria, comuníquese con la Dirección de Informática.</p>
+        </div>
+      </div>
+
+    </div>
+  </main>
 </div>
 
-<!-- Footer -->
-<footer class="footer-landing-user">
-  <p>Créditos: Miguel Contreras, Arturo Pérez, Omar Oberto Big 2026</p>
-</footer>
+<Footer />
 
 <style>
-  /* CSS GENERALES */
-  :global(*) {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
-  :global(html, body) {
-    height: 100%;
-    font-family: 'Google Sans', sans-serif;
-    background-color: ghostwhite;
-  }
-
-  :global(body) {
-    display: grid;
-    grid-template-rows: 8% 1fr auto;
-    grid-template-areas: 
-      "header"
-      "body"
-      "footer";
-  }
-
-  /* HEADER */
-  nav {
-    background-color: #007aff;
-    grid-area: header;    
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    height: 100%;
-  }
-
-  .div-inner-nav {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    width: 25%;
-    height: 100%;
-  }
-
-  .image-wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 50%;
-    height: 100%;
-  }
-
-  .img-nav-login {    
-    display: block;
-    width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-  }
-
-  h1 {
-    color: #fff;
-    text-align: right;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 400;
-    letter-spacing: -1px;
-    padding-right: 20px;
-  }
-
-  /* DIV GRID WRAPPER DE SIDEBAR Y MAIN */
-  .div-grid-wrapper {
-    grid-area: body;
-    display: grid;
-    grid-template-columns: 20% 1fr;
-    grid-template-areas: "sidebar main";
-    height: 100%;
-  }
-
-  /* SIDEBAR */
-  .sidebar-landing-user {
-    grid-area: sidebar;
-    background-color: #2c3e50;
+  .dashboard-area {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    height: 100%;
-    color: #fff;
+    gap: 24px;
   }
 
-  .div-img-sidebar-wrapper {
-    width: 100%;
-    height: 25%;
-    background-position: center;
-    background-size: cover;
-    background-repeat: no-repeat;
+  /* Banner de Bienvenida */
+  .banner-bienvenida {
+    background: linear-gradient(135deg, #0b2545 0%, #134074 50%, #0066cc 100%);
+    border-radius: 16px;
+    padding: 28px 32px;
+    color: #ffffff;
     display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    padding-bottom: 15px;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 6px 20px rgba(11, 37, 69, 0.2);
   }
 
-  .div-img-sidebar-wrapper h3 {
-    background-color: rgba(0, 0, 0, 0.6);
-    padding: 5px 15px;
-    border-radius: 4px;
-    font-size: 1.1rem;
-  }
-
-  .div-modulos-wrapper {
-    width: 100%;
-    padding: 20px 0;
-  }
-
-  .div-modulos-wrapper p {
-    padding-left: 20px;
-    font-size: 0.85rem;
+  .banner-sub {
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    color: #38bdf8;
     text-transform: uppercase;
-    color: #bdc3c7;
-    margin-bottom: 10px;
   }
 
-  .ul-sidebar {
-    list-style: none;
-    width: 100%;
+  .banner-texto h2 {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.7rem;
+    font-weight: 700;
+    margin: 4px 0 6px 0;
+    letter-spacing: -0.3px;
   }
 
-  .ul-sidebar a,
-  .btn-logout-link {
-    text-decoration: none;
-    color: #ecf0f1;
-    display: block;
-    width: 100%;
-    background: none;
-    border: none;
-    font: inherit;
-    cursor: pointer;
-    text-align: left;
+  .banner-fecha {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.85);
+    text-transform: capitalize;
   }
 
-  .ul-sidebar li {
+  .banner-emblema {
     display: flex;
     align-items: center;
-    padding: 12px 20px;
-    transition: background-color 0.3s ease;
-    gap: 12px;
+    gap: 14px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 10px 18px;
+    border-radius: 14px;
+    backdrop-filter: blur(8px);
   }
 
-  .ul-sidebar li:hover {
-    background-color: #34495e;
-    color: #3498db;
+  .banner-logo-img {
+    height: 48px;
+    width: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
   }
 
-  /* MAIN */
-  .main-landing-user {
-    grid-area: main;
-    background-color: #f4f6f7;
-    padding: 20px;
-    overflow-y: auto;
+  .banner-badge-info {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
   }
 
-  /* FOOTER */
-  .footer-landing-user {
-    grid-area: footer;
-    background-color: #007aff;
-    height: 30px;
+  .badge-org {
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-status {
+    font-size: 0.72rem;
+    color: #86efac;
+  }
+
+  /* Sección de Módulos */
+  .seccion-intro h3 {
+    font-size: 1.25rem;
+    color: #0f172a;
+    font-weight: 700;
+    font-family: 'Montserrat', sans-serif;
+  }
+
+  .seccion-sub {
+    font-size: 0.88rem;
+    color: #64748b;
+    margin-top: 2px;
+  }
+
+  /* Grid de Cards */
+  .grid-modulos-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+  }
+
+  .card-modulo {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 20px 22px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  }
+
+  .card-modulo:hover {
+    border-color: #007aff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 122, 255, 0.14);
+  }
+
+  .card-icono-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border: 1px solid #bfdbfe;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
-    font-size: 0.85rem;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+  }
+
+  .card-modulo:hover .card-icono-wrapper {
+    background: linear-gradient(135deg, #0055b3 0%, #007aff 100%);
+    border-color: #007aff;
+  }
+
+  .card-icono-wrapper .material-symbols-outlined {
+    font-size: 24px;
+    color: #0066cc;
+    transition: color 0.2s ease;
+  }
+
+  .card-modulo:hover .card-icono-wrapper .material-symbols-outlined {
+    color: #ffffff;
+  }
+
+  .card-info {
+    flex: 1;
+  }
+
+  .card-info h4 {
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 4px;
+  }
+
+  .card-info p {
+    font-size: 0.82rem;
+    color: #64748b;
+    line-height: 1.4;
+  }
+
+  .card-flecha {
+    color: #94a3b8;
+    font-size: 20px;
+    flex-shrink: 0;
+    transition: transform 0.2s ease, color 0.2s ease;
+  }
+
+  .card-modulo:hover .card-flecha {
+    transform: translateX(4px);
+    color: #007aff;
+  }
+
+  /* Nota Institucional */
+  .nota-institucional {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #007aff;
+    border-radius: 10px;
+    padding: 16px 20px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  }
+
+  .nota-unermb-logo {
+    height: 40px;
+    width: auto;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+
+  .nota-texto strong {
+    font-size: 0.9rem;
+    color: #0f172a;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .nota-texto p {
+    font-size: 0.83rem;
+    color: #64748b;
   }
 </style>

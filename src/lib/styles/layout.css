@@ -1,0 +1,489 @@
+/* ==========================================================================
+   SISUNERMB - SISTEMA INTEGRAL DE SALUD UNIVERSITARIO (UNERMB)
+   ESTILOS INSTITUCIONALES UNIFICADOS PARA NAVBAR, SIDEBAR Y LAYOUT BASE
+   ========================================================================== */
+
+/* ==========================================================================
+   TIPOGRAFÍA E ICONOS LOCALES (100% OFFLINE / SIN CONEXIÓN A INTERNET)
+   ========================================================================== */
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 100 700;
+  src: url('/fonts/material-symbols-outlined.woff2') format('woff2');
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/fonts/montserrat-400.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 600;
+  src: url('/fonts/montserrat-600.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 700;
+  src: url('/fonts/montserrat-700.woff2') format('woff2');
+  font-display: swap;
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined' !important;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Resets y tipografía base */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f1f5f9;
+  color: #1e293b;
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* ==========================================================================
+   1. NAVBAR INSTITUCIONAL SUPERIOR
+   ========================================================================== */
+.nav-landing-user {
+  height: 64px;
+  min-height: 64px;
+  max-height: 64px;
+  flex-shrink: 0;
+  background: linear-gradient(90deg, #0b2545 0%, #134074 45%, #0066cc 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  box-shadow: 0 3px 10px rgba(11, 37, 69, 0.25);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.12);
+  z-index: 100;
+}
+
+/* Contenedor tipo píldora para los dos logos institucionales */
+.nav-brand-container {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.nav-logos-pill {
+  background: #ffffff;
+  padding: 4px 16px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 50px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+}
+
+.brand-unermb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-link {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  text-decoration: none;
+}
+
+.img-nav-escudo {
+  height: 38px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.img-nav-unermb {
+  height: 34px;
+  width: auto;
+  max-width: 140px;
+  object-fit: contain;
+  display: block;
+}
+
+.nav-logos-divider {
+  width: 1.5px;
+  height: 32px;
+  background-color: #cbd5e1;
+}
+
+.img-nav-sisunermb {
+  height: 40px;
+  width: auto;
+  max-width: 140px;
+  object-fit: contain;
+  display: block;
+}
+
+/* Textos de la cabecera */
+.nav-title-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  text-align: right;
+  gap: 2px;
+}
+
+.nav-system-title {
+  color: #ffffff;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.nav-university-sub {
+  color: rgba(255, 255, 255, 0.85);
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+}
+
+/* ==========================================================================
+   2. GRID PRINCIPAL (SIDEBAR + MAIN)
+   ========================================================================== */
+.div-grid-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  grid-template-areas: "sidebar main";
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   3. SIDEBAR LATERAL EJECUTIVO
+   ========================================================================== */
+.sidebar-landing-user {
+  grid-area: sidebar;
+  background-color: #111c2e;
+  border-right: 1px solid #1e293b;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  color: #ffffff;
+  overflow-y: auto;
+  position: relative;
+  z-index: 50;
+  box-shadow: 3px 0 10px rgba(0, 0, 0, 0.12);
+}
+
+/* Perfil / Usuario activo en el sidebar */
+.sidebar-user-section {
+  padding: 18px 16px;
+  background: linear-gradient(180deg, #182841 0%, #111c2e 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.user-avatar-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0055b3 0%, #007aff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 8px rgba(0, 122, 255, 0.35);
+  flex-shrink: 0;
+}
+
+.user-avatar-badge .user-avatar-icon {
+  font-size: 26px;
+  color: #ffffff;
+}
+
+.sidebar-user-emblem {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
+}
+
+.user-info-text {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.user-role-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: #38bdf8;
+  text-transform: uppercase;
+}
+
+.user-display-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+.user-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.status-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  box-shadow: 0 0 6px #22c55e;
+}
+
+.status-text {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+/* Navegación y módulos */
+.div-modulos-wrapper {
+  width: 100%;
+  padding: 16px 0;
+  flex-grow: 1;
+}
+
+.sidebar-menu-header {
+  padding: 0 18px 10px 18px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.ul-sidebar {
+  list-style: none;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.btn-menu-item {
+  text-decoration: none;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 18px;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  border-left: 4px solid transparent;
+}
+
+.btn-menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  border-left-color: #38bdf8;
+}
+
+.btn-menu-item.activo {
+  background-color: rgba(0, 122, 255, 0.18);
+  color: #60a5fa;
+  border-left-color: #007aff;
+  font-weight: 700;
+}
+
+.btn-menu-item span.material-symbols-outlined {
+  font-size: 20px;
+  flex-shrink: 0;
+  color: #94a3b8;
+  transition: color 0.2s ease;
+}
+
+.btn-menu-item:hover span.material-symbols-outlined {
+  color: #38bdf8;
+}
+
+.btn-menu-item.activo span.material-symbols-outlined {
+  color: #60a5fa;
+}
+
+.sidebar-divider {
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.08);
+  margin: 10px 16px;
+}
+
+.btn-logout {
+  color: #f87171 !important;
+}
+
+.btn-logout span.material-symbols-outlined {
+  color: #f87171 !important;
+}
+
+.btn-logout:hover {
+  background-color: rgba(248, 113, 113, 0.12) !important;
+  color: #fca5a5 !important;
+  border-left-color: #f87171 !important;
+}
+
+/* ==========================================================================
+   4. ÁREA PRINCIPAL DE CONTENIDO
+   ========================================================================== */
+.main-landing-user {
+  grid-area: main;
+  background-color: #f8fafc;
+  overflow-y: auto;
+  height: 100%;
+  padding: 24px 32px;
+}
+
+/* Contenedor central estándar */
+.contenido-modulo {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.header-seccion {
+  margin-bottom: 22px;
+}
+
+.header-seccion h2 {
+  font-size: 1.65rem;
+  color: #0f172a;
+  font-weight: 700;
+  font-family: 'Montserrat', sans-serif;
+  letter-spacing: -0.3px;
+}
+
+.header-seccion .subtitulo {
+  color: #64748b;
+  font-size: 0.92rem;
+  margin-top: 4px;
+}
+
+/* Alertas comunes */
+.alerta-exito {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  padding: 13px 18px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 0.92rem;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(22, 101, 52, 0.06);
+}
+
+.alerta-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 13px 18px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 0.92rem;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(153, 27, 27, 0.06);
+}
+
+.alerta-mensaje {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  padding: 13px 18px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
+/* ==========================================================================
+   5. FOOTER INSTITUCIONAL
+   ========================================================================== */
+.footer-landing-user {
+  height: 30px;
+  min-height: 30px;
+  max-height: 30px;
+  flex-shrink: 0;
+  background: #0b2545;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.76rem;
+  letter-spacing: 0.4px;
+  z-index: 100;
+}
+

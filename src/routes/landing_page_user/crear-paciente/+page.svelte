@@ -3,6 +3,9 @@
   import { goto } from '$app/navigation';
   import { crearPaciente } from '$lib/queries/pacientes';
   import type { CrearPacienteInput } from '$lib/types/paciente';
+  import Navbar from '$lib/components/Navbar.svelte';
+  import Sidebar from '$lib/components/Sidebar.svelte';
+  import Footer from '$lib/components/Footer.svelte';
 
   let usuarioActual: { id: string; nombre: string; rol: string } | null = null;
 
@@ -28,15 +31,12 @@
     const sesion = localStorage.getItem('usuario_sesion');
     if (sesion) {
       usuarioActual = JSON.parse(sesion);
+      // Redirigir al Módulo Administrativo (pestaña Registrar Paciente)
+      goto('/landing_page_user/modulo-creación?tab=paciente');
     } else {
       goto('/');
     }
   });
-
-  function cerrarSesion() {
-    localStorage.removeItem('usuario_sesion');
-    goto('/');
-  }
 
   function alCambiarCondicion() {
     if (esTitular) {
@@ -116,86 +116,13 @@
 </script>
 
 <svelte:head>
-  <title>SISUNERMB - Registrar Paciente</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <title>Registrar Paciente – SISUNERMB</title>
 </svelte:head>
 
-<nav class="nav-landing-user">
-  <div class="div-inner-nav">
-    <a href="https://unermb.web.ve" class="image-wrapper">
-      <img class="img-nav-login" src="/cintillo-unermb.png" alt="Cintillo UNERMB" />
-    </a>
-    <div class="image-wrapper">
-      <img class="img-nav-login" src="/sisunermb.png" alt="Logo SISUNERMB" />
-    </div>
-  </div>
-  <h1>BIENVENIDO AL REGISTRO MEDICO SISUNERMB</h1>
-</nav>
+<Navbar />
 
 <div class="div-grid-wrapper">
-  
-  <aside class="sidebar-landing-user">
-    <div class="div-img-sidebar-wrapper" style="background-image: url('/background.jpg');">
-      <h3>{usuarioActual ? usuarioActual.nombre : 'Cargando...'}</h3>
-    </div>
-
-    <div class="div-modulos-wrapper">
-      <p>Módulos</p>
-      
-      <ul class="ul-sidebar">
-        <li>
-          <a href="/landing_page_user/crear-paciente" class="btn-menu-item activo">
-            <span class="material-symbols-outlined">person</span>
-            <span>Registrar Paciente</span>
-          </a>
-        </li>
-
-        <li>
-          <a href="/landing_page_user/crear-consulta" class="btn-menu-item">
-            <span class="material-symbols-outlined">medication</span>
-            <span>Consulta Diagnóstico</span>
-          </a>
-        </li>
-
-        <li>
-          <a href="/landing_page_user/historial-paciente" class="btn-menu-item">
-            <span class="material-symbols-outlined">history</span>
-            <span>Historial Paciente</span>
-          </a>
-        </li>
-
-        <li>
-          <a href="/landing_page_user/reposos-suspensiones" class="btn-menu-item">
-            <span class="material-symbols-outlined">calendar_clock</span>
-            <span>Reposos/Suspensiones</span>
-          </a>
-        </li>
-
-        <li>
-          <a href="/landing_page_user/reporte-morbilidad" class="btn-menu-item">
-            <span class="material-symbols-outlined">patient_list</span>
-            <span>Reporte Morbilidad</span>
-          </a>
-        </li>
-
-        <li>
-          <a href="/landing_page_user/buscar-paciente" class="btn-menu-item">
-            <span class="material-symbols-outlined">search</span>
-            <span>Búsqueda Paciente</span>
-          </a>
-        </li>
-
-        <li>
-          <button type="button" on:click={cerrarSesion} class="btn-menu-item btn-logout">
-            <span class="material-symbols-outlined">logout</span>
-            <span>Cerrar Sesión</span>
-          </button>
-        </li>
-      </ul>
-    </div>
-  </aside>
+  <Sidebar moduloActivo="crear-paciente" {usuarioActual} />
 
   <main class="main-landing-user">
     <div class="contenido-modulo">
@@ -235,7 +162,6 @@
                 on:change={alCambiarCondicion}
                 disabled={cargando} 
               />
-              <span class="switch-ui"></span>
               <span class="switch-texto">
                 {esTitular 
                   ? 'El paciente es el propio Titular del beneficio universitario' 
@@ -405,7 +331,7 @@
         <div class="form-acciones">
           <button type="button" class="btn-secundario" on:click={limpiarFormulario} disabled={cargando}>
             <span class="material-symbols-outlined">restart_alt</span>
-            <span>Limpiar</span>
+            <span>Limpiar Formulario</span>
           </button>
           
           <button type="submit" class="btn-primario" disabled={cargando}>
@@ -417,199 +343,20 @@
       </form>
     </div>
   </main>
-
 </div>
 
-<footer class="footer-landing-user">
-  <p>Créditos: Miguel Contreras, Arturo Pérez, Omar Oberto Big 2026</p>
-</footer>
+<Footer />
 
 <style>
-  :global(*) {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
-  :global(html, body) {
-    height: 100vh;
-    font-family: 'Google Sans', sans-serif;
-    background-color: ghostwhite;
-    overflow: hidden;
-  }
-
-  :global(body) {
-    display: grid;
-    grid-template-rows: 60px 1fr 30px;
-    grid-template-areas: 
-      "header"
-      "body"
-      "footer";
-  }
-
-  nav {
-    background-color: #007aff;
-    grid-area: header;    
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    padding: 0 20px;
-  }
-
-  .div-inner-nav {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    height: 100%;
-  }
-
-  .image-wrapper {
-    display: flex;
-    align-items: center;
-    height: 100%;
-  }
-
-  .img-nav-login {    
-    display: block;
-    height: 40px;
-    object-fit: contain;
-  }
-
-  h1 {
-    color: #fff;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 1.1rem;
-    font-weight: 500;
-  }
-
-  .div-grid-wrapper {
-    grid-area: body;
-    display: grid;
-    grid-template-columns: 240px 1fr;
-    grid-template-areas: "sidebar main";
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .sidebar-landing-user {
-    grid-area: sidebar;
-    background-color: #2c3e50;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    color: #fff;
-    overflow-y: auto;
-    position: relative;
-    z-index: 50;
-  }
-
-  .div-img-sidebar-wrapper {
-    width: 100%;
-    height: 120px;
-    background-position: center;
-    background-size: cover;
-    background-repeat: no-repeat;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    padding-bottom: 12px;
-    flex-shrink: 0;
-  }
-
-  .div-img-sidebar-wrapper h3 {
-    background-color: rgba(0, 0, 0, 0.6);
-    padding: 4px 12px;
-    border-radius: 4px;
-    font-size: 0.95rem;
-  }
-
-  .div-modulos-wrapper {
-    width: 100%;
-    padding: 15px 0;
-    flex-grow: 1;
-  }
-
-  .div-modulos-wrapper p {
-    padding-left: 20px;
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    color: #bdc3c7;
-    margin-bottom: 10px;
-    font-weight: 600;
-  }
-
-  .ul-sidebar {
-    list-style: none;
-    width: 100%;
-  }
-
-  .btn-menu-item {
-    text-decoration: none;
-    color: #ecf0f1;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-    padding: 12px 20px;
-    background: none;
-    border: none;
-    font: inherit;
-    cursor: pointer;
-    text-align: left;
-    transition: background-color 0.2s ease, color 0.2s ease;
-  }
-
-  .btn-menu-item:hover,
-  .btn-menu-item.activo {
-    background-color: #34495e;
-    color: #3498db;
-  }
-
-  .btn-menu-item span.material-symbols-outlined {
-    font-size: 20px;
-    flex-shrink: 0;
-  }
-
-  .main-landing-user {
-    grid-area: main;
-    background-color: #f1f5f9;
-    padding: 30px;
-    overflow-y: auto;
-    height: 100%;
-  }
-
-  .contenido-modulo {
-    max-width: 900px;
-    margin: 0 auto;
-  }
-
-  .header-seccion {
-    margin-bottom: 24px;
-  }
-
-  .contenido-modulo h2 {
-    font-size: 1.8rem;
-    color: #1e293b;
-    font-weight: 700;
-    font-family: 'Montserrat', sans-serif;
-  }
-
-  .subtitulo {
-    color: #64748b;
-    font-size: 0.95rem;
-    margin-top: 4px;
-  }
-
   .formulario-card {
     background: #ffffff;
-    padding: 30px;
+    padding: 30px 32px;
     border-radius: 14px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
     border: 1px solid #e2e8f0;
     display: flex;
     flex-direction: column;
-    gap: 26px;
+    gap: 24px;
   }
 
   .seccion-bloque {
@@ -617,7 +364,7 @@
     flex-direction: column;
     gap: 16px;
     border-bottom: 1px solid #f1f5f9;
-    padding-bottom: 24px;
+    padding-bottom: 22px;
   }
 
   .seccion-bloque:last-of-type {
@@ -632,6 +379,7 @@
     font-size: 1.05rem;
     font-weight: 700;
     color: #1e293b;
+    font-family: 'Montserrat', sans-serif;
   }
 
   .seccion-titulo span.material-symbols-outlined {
@@ -642,26 +390,26 @@
   .condicion-card {
     background-color: #f8fafc;
     border: 1px solid #e2e8f0;
-    padding: 16px 20px;
+    padding: 14px 18px;
     border-radius: 10px;
   }
 
   .label-switch {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
     cursor: pointer;
   }
 
   .label-switch input {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     accent-color: #007aff;
     cursor: pointer;
   }
 
   .switch-texto {
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     font-weight: 600;
     color: #334155;
   }
@@ -669,7 +417,7 @@
   .grid-campos {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 18px;
+    gap: 16px;
   }
 
   .col-span-2 {
@@ -683,7 +431,7 @@
   }
 
   .campo-grupo label {
-    font-size: 0.85rem;
+    font-size: 0.83rem;
     font-weight: 600;
     color: #475569;
   }
@@ -705,10 +453,10 @@
   .input-con-icono input,
   .input-con-icono select {
     width: 100%;
-    padding: 11px 14px 11px 40px;
-    border: 1px solid #cbd5e1;
+    padding: 10px 14px 10px 40px;
+    border: 1.5px solid #cbd5e1;
     border-radius: 8px;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     background-color: #f8fafc;
     color: #0f172a;
     outline: none;
@@ -720,7 +468,7 @@
   .input-con-icono select:focus {
     border-color: #007aff;
     background-color: #ffffff;
-    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.12);
   }
 
   .input-con-icono input:disabled,
@@ -734,29 +482,29 @@
   .form-acciones {
     display: flex;
     justify-content: flex-end;
-    gap: 15px;
-    margin-top: 10px;
+    gap: 14px;
+    margin-top: 8px;
   }
 
   .btn-primario {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background-color: #007aff;
-    color: white;
+    background: linear-gradient(135deg, #0055b3 0%, #007aff 100%);
+    color: #ffffff;
     border: none;
-    padding: 12px 26px;
+    padding: 11px 24px;
     border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.95rem;
+    font-weight: 700;
+    font-size: 0.92rem;
     cursor: pointer;
-    transition: background-color 0.2s, box-shadow 0.2s;
-    box-shadow: 0 2px 4px rgba(0, 122, 255, 0.2);
+    transition: all 0.2s ease;
+    box-shadow: 0 3px 8px rgba(0, 122, 255, 0.25);
   }
 
   .btn-primario:hover:not(:disabled) {
-    background-color: #0062cc;
-    box-shadow: 0 4px 6px rgba(0, 122, 255, 0.3);
+    background: linear-gradient(135deg, #004494 0%, #0066d6 100%);
+    box-shadow: 0 5px 14px rgba(0, 122, 255, 0.35);
   }
 
   .btn-secundario {
@@ -766,12 +514,12 @@
     background-color: #f1f5f9;
     color: #475569;
     border: 1px solid #cbd5e1;
-    padding: 12px 20px;
+    padding: 11px 18px;
     border-radius: 8px;
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     cursor: pointer;
-    transition: background-color 0.2s, color 0.2s;
+    transition: all 0.2s ease;
   }
 
   .btn-secundario:hover:not(:disabled) {
@@ -782,42 +530,6 @@
   button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
-  }
-
-  .alerta-exito {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background-color: #f0fdf4;
-    border: 1px solid #bbf7d0;
-    color: #166534;
-    padding: 14px 18px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    font-weight: 500;
-  }
-
-  .alerta-error {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background-color: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #991b1b;
-    padding: 14px 18px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    font-weight: 500;
-  }
-
-  .footer-landing-user {
-    grid-area: footer;
-    background-color: #007aff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-size: 0.85rem;
   }
 
   @media (max-width: 768px) {
