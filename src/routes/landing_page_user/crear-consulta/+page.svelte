@@ -13,7 +13,7 @@
   import Sidebar from '$lib/components/Sidebar.svelte';
   import Footer from '$lib/components/Footer.svelte';
 
-  let usuarioActual: { id: number; nombre: string; rol: string } | null = null;
+  let usuarioActual: { id: string; nombre: string; rol: string } | null = null;
 
   let formulario: any = {
     especialidad_consulta: '',
@@ -182,6 +182,11 @@
     event.preventDefault();
     mensajeExito = '';
     mensajeError = '';
+
+    // Normalizar diagnóstico médico a mayúsculas
+    if (formulario.diagnostico_consulta) {
+      formulario.diagnostico_consulta = formulario.diagnostico_consulta.trim().toUpperCase();
+    }
 
     // Validar si hay reposo activo detectado con el mismo doctor
     if (formulario.tiene_reposo && reposoActivoDetectado) {
@@ -423,6 +428,12 @@
               <textarea 
                 id="diagnostico" 
                 bind:value={formulario.diagnostico_consulta} 
+                on:input={() => {
+                  if (formulario.diagnostico_consulta) {
+                    formulario.diagnostico_consulta = formulario.diagnostico_consulta.toUpperCase();
+                  }
+                }}
+                style="text-transform: uppercase;" 
                 rows="4" 
                 placeholder="Describa el diagnóstico clínico, observaciones o tratamiento indicado..."
                 disabled={cargando}

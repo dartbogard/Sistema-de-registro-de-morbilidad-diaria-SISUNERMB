@@ -13,6 +13,7 @@ export async function crearConsulta(datos: CrearConsultaConReposoInput): Promise
   
   const fechaConsulta = datos.fecha_consulta?.trim() || null;
   const cedulaPaciente = String(datos.ci_beneficiario_paciente).trim();
+  const diagnosticoConsulta = (datos.diagnostico_consulta || '').trim().toUpperCase();
 
   // 1. Insertamos la consulta y pedimos que nos devuelva el id_consulta generado
   const resultadoConsulta = await db.select<{ id_consulta: string }[]>(
@@ -33,7 +34,7 @@ export async function crearConsulta(datos: CrearConsultaConReposoInput): Promise
           THEN (NOW() AT TIME ZONE 'America/Caracas')
         ELSE ($5::DATE + (NOW() AT TIME ZONE 'America/Caracas')::TIME)
       END, 
-      $6
+      UPPER(TRIM($6))
     ) RETURNING id_consulta`,
     [
       datos.especialidad_consulta,
@@ -41,7 +42,7 @@ export async function crearConsulta(datos: CrearConsultaConReposoInput): Promise
       cedulaPaciente,
       datos.doctor_consulta,
       fechaConsulta,
-      datos.diagnostico_consulta
+      diagnosticoConsulta
     ]
   );
 
@@ -97,7 +98,7 @@ export async function obtenerHistorialConsultas() {
     `SELECT 
       c.id_consulta,
       c.fecha_consulta,
-      c.diagnostico_consulta,
+      UPPER(TRIM(c.diagnostico_consulta)) AS diagnostico_consulta,
       p.nombre_completo_paciente,
       p.ci_titular_paciente,
       d.nombre_doctor || ' ' || d.apellido_doctor AS nombre_doctor,
@@ -128,7 +129,7 @@ export async function obtenerHistorialPorCedula(terminoBusqueda: string) {
       c.fecha_creacion_consulta,
       TO_CHAR(COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) AT TIME ZONE 'America/Caracas', 'DD/MM/YYYY') AS fecha_formateada,
       TO_CHAR(COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) AT TIME ZONE 'America/Caracas', 'HH12:MI AM') AS hora_formateada,
-      c.diagnostico_consulta,
+      UPPER(TRIM(c.diagnostico_consulta)) AS diagnostico_consulta,
       p.nombre_completo_paciente,
       p.ci_titular_paciente,
       p.ci_beneficiario_paciente,
@@ -165,7 +166,7 @@ export async function obtenerReporteMorbilidad(fechaInicio?: string, fechaFin?: 
   
   let query = `
     SELECT 
-      c.diagnostico_consulta AS diagnostico,
+      UPPER(TRIM(c.diagnostico_consulta)) AS diagnostico,
       COUNT(c.id_consulta)::INTEGER AS total_casos,
       e.tipo_especialidad AS especialidad,
       COALESCE(STRING_AGG(DISTINCT p.nombre_completo_paciente, ', '), 'Sin paciente asignado') AS paciente
@@ -197,7 +198,7 @@ export async function obtenerReporteMorbilidad(fechaInicio?: string, fechaFin?: 
     ) `;
   }
 
-  query += ` GROUP BY c.diagnostico_consulta, e.tipo_especialidad ORDER BY total_casos DESC `;
+  query += ` GROUP BY UPPER(TRIM(c.diagnostico_consulta)), e.tipo_especialidad ORDER BY total_casos DESC `;
 
   return await db.select(query, params);
 }
@@ -214,7 +215,7 @@ export async function obtenerConsultasDetalladas(fechaInicio?: string, fechaFin?
       c.id_consulta,
       TO_CHAR(COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) AT TIME ZONE 'America/Caracas', 'YYYY-MM-DD') AS fecha_consulta,
       TO_CHAR(COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) AT TIME ZONE 'America/Caracas', 'HH12:MI AM') AS hora_consulta,
-      c.diagnostico_consulta AS diagnostico,
+      UPPER(TRIM(c.diagnostico_consulta)) AS diagnostico,
       COALESCE(p.nombre_completo_paciente, 'Sin registrar') AS paciente,
       COALESCE(p.ci_beneficiario_paciente, p.ci_titular_paciente, 'S/C') AS cedula,
       e.tipo_especialidad AS especialidad,
