@@ -33,6 +33,13 @@
   } from '$lib/queries/pacientes';
   import type { Paciente, CrearPacienteInput } from '$lib/types/paciente';
   import { 
+    obtenerConsultasAdministrativas,
+    editarConsultaAdmin,
+    eliminarConsultaAdmin,
+    obtenerDoctoresPorEspecialidad
+  } from '$lib/queries/consultas';
+  import type { ConsultaDetalladaAdmin } from '$lib/types/consulta';
+  import { 
     obtenerHistorialAuditoria 
   } from '$lib/queries/auditoria';
   import type { RegistroAuditoria } from '$lib/types/auditoria';
@@ -45,7 +52,7 @@
   let usuarioActual: { id: string; nombre: string; rol: string } | null = null;
 
   // Control de la pestaña activa
-  let tabActiva: 'doctor' | 'especialidad' | 'usuario' | 'paciente' | 'auditoria' = 'doctor';
+  let tabActiva: 'doctor' | 'especialidad' | 'usuario' | 'paciente' | 'consulta' | 'auditoria' = 'doctor';
 
   // Mensajes de respuesta
   let mensajeExito = '';
@@ -82,6 +89,25 @@
   let cargandoPacientes = false;
   let listaPacientes: Paciente[] = [];
   let filtroBusquedaPacientes = '';
+
+  // CONSULTAS
+  let mostrarConsultas = true;
+  let cargandoConsultas = false;
+  let listaConsultas: ConsultaDetalladaAdmin[] = [];
+  let filtroBusquedaConsultas = '';
+  let consultaAEditar: ConsultaDetalladaAdmin | null = null;
+  let formEditarConsulta = {
+    diagnostico_consulta: '',
+    fecha_consulta: '',
+    doctor_consulta: '',
+    especialidad_consulta: '',
+    tiene_reposo: false,
+    fecha_inicio_suspension: '',
+    fecha_final_suspension: ''
+  };
+  let doctoresEdicionConsulta: any[] = [];
+  let cargandoDoctoresEdicion = false;
+  let consultaAEliminar: ConsultaDetalladaAdmin | null = null;
 
   // AUDITORÍA (HISTORIAL DE ACCIONES)
   let cargandoAuditoria = false;
@@ -172,6 +198,20 @@
       (pac.ci_titular_paciente || '').toLowerCase().includes(q) ||
       (pac.ci_beneficiario_paciente || '').toLowerCase().includes(q) ||
       (pac.tipo_personal_paciente || '').toLowerCase().includes(q)
+    );
+  });
+
+  $: consultasFiltradas = listaConsultas.filter(c => {
+    if (!filtroBusquedaConsultas.trim()) return true;
+    const q = filtroBusquedaConsultas.toLowerCase().trim();
+    return (
+      (c.diagnostico_consulta || '').toLowerCase().includes(q) ||
+      (c.nombre_completo_paciente || '').toLowerCase().includes(q) ||
+      (c.cedula_paciente || '').toLowerCase().includes(q) ||
+      (c.ci_titular_paciente || '').toLowerCase().includes(q) ||
+      (c.nombre_doctor || '').toLowerCase().includes(q) ||
+      (c.tipo_especialidad || '').toLowerCase().includes(q) ||
+      (c.fecha_formateada || '').toLowerCase().includes(q)
     );
   });
 
@@ -274,6 +314,146 @@
     }
   }
 
+  async function toggleConsultas() {
+    mostrarConsultas = !mostrarConsultas;
+    if (mostrarConsultas && listaConsultas.length === 0) {
+      await recargarConsultas();
+    }
+  }
+
+  async function recargarConsultas() {
+    cargandoConsultas = true;
+    try {
+      listaConsultas = await obtenerConsultasAdministrativas(250, filtroBusquedaConsultas);
+    } catch (err) {
+      console.error('Error al cargar consultas médicas:', err);
+    } finally {
+      cargandoConsultas = false;
+    }
+  }
+
+  async function abrirModalEditarConsulta(c: ConsultaDetalladaAdmin) {
+    consultaAEditar = c;
+    formEditarConsulta = {
+      diagnostico_consulta: c.diagnostico_consulta || '',
+      fecha_consulta: c.fecha_consulta_raw || (c.fecha_consulta ? c.fecha_consulta.substring(0, 10) : ''),
+      doctor_consulta: c.id_doctor,
+      especialidad_consulta: c.id_especialidad,
+      tiene_reposo: Boolean(c.tiene_reposo),
+      fecha_inicio_suspension: c.fecha_inicio_suspension || '',
+      fecha_final_suspension: c.fecha_final_suspension || ''
+    };
+    await cargarDoctoresParaEdicionConsulta(c.id_especialidad);
+  }
+
+  async function cargarDoctoresParaEdicionConsulta(idEspecialidad?: string) {
+    cargandoDoctoresEdicion = true;
+    try {
+      doctoresEdicionConsulta = (await obtenerDoctoresPorEspecialidad(idEspecialidad)) as any[];
+    } catch (e) {
+      console.error('Error al cargar doctores para edición:', e);
+      doctoresEdicionConsulta = [];
+    } finally {
+      cargandoDoctoresEdicion = false;
+    }
+  }
+
+  async function alCambiarEspecialidadEdicionConsulta() {
+    await cargarDoctoresParaEdicionConsulta(formEditarConsulta.especialidad_consulta);
+    if (doctoresEdicionConsulta.length > 0) {
+      const existe = doctoresEdicionConsulta.some(d => String(d.id_doctor) === String(formEditarConsulta.doctor_consulta));
+      if (!existe) {
+        formEditarConsulta.doctor_consulta = String(doctoresEdicionConsulta[0].id_doctor);
+      }
+    } else {
+      formEditarConsulta.doctor_consulta = '';
+    }
+  }
+
+  async function ejecutarEdicionConsulta() {
+    if (!consultaAEditar) return;
+    if (!formEditarConsulta.diagnostico_consulta.trim()) {
+      mensajeError = 'Debe indicar un diagnóstico médico válido.';
+      return;
+    }
+    if (!formEditarConsulta.fecha_consulta) {
+      mensajeError = 'Debe seleccionar la fecha de la consulta.';
+      return;
+    }
+    if (!formEditarConsulta.doctor_consulta) {
+      mensajeError = 'Debe seleccionar el médico tratante.';
+      return;
+    }
+    if (formEditarConsulta.tiene_reposo) {
+      if (!formEditarConsulta.fecha_inicio_suspension || !formEditarConsulta.fecha_final_suspension) {
+        mensajeError = 'Debe indicar las fechas de inicio y fin del reposo médico.';
+        return;
+      }
+    }
+
+    guardando = true;
+    try {
+      const docObj = doctoresEdicionConsulta.find(d => String(d.id_doctor) === String(formEditarConsulta.doctor_consulta));
+      const espObj = especialidadesDisponibles.find(e => String(e.id_especialidad) === String(formEditarConsulta.especialidad_consulta));
+
+      await editarConsultaAdmin(
+        consultaAEditar.id_consulta,
+        {
+          diagnostico_consulta: formEditarConsulta.diagnostico_consulta,
+          fecha_consulta: formEditarConsulta.fecha_consulta,
+          doctor_consulta: formEditarConsulta.doctor_consulta,
+          especialidad_consulta: formEditarConsulta.especialidad_consulta,
+          tiene_reposo: formEditarConsulta.tiene_reposo,
+          fecha_inicio_suspension: formEditarConsulta.fecha_inicio_suspension,
+          fecha_final_suspension: formEditarConsulta.fecha_final_suspension
+        },
+        usuarioActual?.nombre || 'Administrador',
+        {
+          nombrePaciente: consultaAEditar.nombre_completo_paciente,
+          cedulaPaciente: consultaAEditar.cedula_paciente,
+          nombreDoctor: docObj?.nombre_completo || consultaAEditar.nombre_doctor,
+          tipoEspecialidad: espObj?.tipo_especialidad || consultaAEditar.tipo_especialidad
+        }
+      );
+
+      mensajeExito = `¡Consulta médica del paciente ${consultaAEditar.nombre_completo_paciente} actualizada exitosamente!`;
+      consultaAEditar = null;
+      await recargarConsultas();
+    } catch (err: any) {
+      console.error('Error al editar consulta médica:', err);
+      mensajeError = `Error al actualizar consulta médica: ${err.message || err}`;
+    } finally {
+      guardando = false;
+    }
+  }
+
+  function abrirModalEliminarConsulta(c: ConsultaDetalladaAdmin) {
+    consultaAEliminar = c;
+  }
+
+  async function ejecutarBajaConsulta() {
+    if (!consultaAEliminar) return;
+    guardando = true;
+    try {
+      await eliminarConsultaAdmin(
+        consultaAEliminar.id_consulta,
+        consultaAEliminar.nombre_completo_paciente,
+        consultaAEliminar.cedula_paciente,
+        consultaAEliminar.nombre_doctor,
+        consultaAEliminar.diagnostico_consulta,
+        usuarioActual?.nombre || 'Administrador'
+      );
+      mensajeExito = `¡Consulta médica del paciente ${consultaAEliminar.nombre_completo_paciente} dada de baja (ocultada). La trazabilidad médica se preserva en la base de datos.`;
+      consultaAEliminar = null;
+      await recargarConsultas();
+    } catch (err: any) {
+      console.error('Error al dar de baja consulta médica:', err);
+      mensajeError = `Error al procesar baja de consulta médica: ${err.message || err}`;
+    } finally {
+      guardando = false;
+    }
+  }
+
   async function togglePacientes() {
     mostrarPacientes = !mostrarPacientes;
     if (mostrarPacientes && listaPacientes.length === 0) {
@@ -373,7 +553,7 @@
       usuarioActual = JSON.parse(sesion);
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
-      if (tabParam === 'paciente' || tabParam === 'doctor' || tabParam === 'especialidad' || tabParam === 'usuario' || tabParam === 'auditoria') {
+      if (tabParam === 'paciente' || tabParam === 'doctor' || tabParam === 'especialidad' || tabParam === 'usuario' || tabParam === 'consulta' || tabParam === 'auditoria') {
         tabActiva = tabParam;
       }
       // Cargar catálogo liviano de especialidades para doctor
@@ -888,6 +1068,16 @@
           >
             <span class="material-symbols-outlined">person_add</span>
             <span>Registrar Paciente</span>
+          </button>
+
+          <button 
+            type="button"
+            class="tab-btn"
+            class:active={tabActiva === 'consulta'} 
+            on:click={() => { tabActiva = 'consulta'; mensajeExito = ''; mensajeError = ''; if (listaConsultas.length === 0) recargarConsultas(); }}
+          >
+            <span class="material-symbols-outlined">stethoscope</span>
+            <span>Directorio de Consultas</span>
           </button>
 
           <button 
@@ -1721,6 +1911,179 @@
         {/if}
 
         <!-- ======================================================= -->
+        <!-- TAB: CONSULTAS MÉDICAS -->
+        <!-- ======================================================= -->
+        {#if tabActiva === 'consulta'}
+          <div class="bloque-formulario">
+            <div class="form-seccion-header barra-auditoria-top">
+              <div>
+                <h3>Gestión y Directorio de Consultas Médicas</h3>
+                <p>Consulte el historial de consultas médicas registradas, modifique diagnósticos y gestione bajas lógicas seguras con auditoría institucional.</p>
+              </div>
+
+              <div class="acciones-auditoria-top">
+                <a 
+                  href="/landing_page_user/crear-consulta" 
+                  class="btn-ir-crear-consulta"
+                  title="Ir al módulo de registro de nueva consulta"
+                >
+                  <span class="material-symbols-outlined">add_circle</span>
+                  <span>Registrar Nueva Consulta</span>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECCIÓN BAJO DEMANDA: CONSULTAS EN EXISTENCIA -->
+          <div class="seccion-ondemand-contenedor">
+            <div class="barra-ondemand-header">
+              <div class="info-ondemand">
+                <span class="material-symbols-outlined icono-ondemand">stethoscope</span>
+                <div>
+                  <h4 class="titulo-ondemand">Directorio de Consultas Médicas en Existencia</h4>
+                  <p class="sub-ondemand">Consulte diagnósticos médicos, modifique fechas o ejecute bajas lógicas seguras.</p>
+                </div>
+              </div>
+
+              <div class="acciones-ondemand">
+                <button 
+                  type="button" 
+                  class="btn-ondemand {mostrarConsultas ? 'activo' : ''}" 
+                  on:click={toggleConsultas}
+                  disabled={cargandoConsultas}
+                >
+                  <span class="material-symbols-outlined">{mostrarConsultas ? 'expand_less' : 'visibility'}</span>
+                  <span>{mostrarConsultas ? 'Ocultar Listado' : 'Consultar Consultas en Existencia'}</span>
+                </button>
+
+                {#if mostrarConsultas}
+                  <button 
+                    type="button" 
+                    class="btn-recargar-ondemand" 
+                    on:click={recargarConsultas} 
+                    disabled={cargandoConsultas}
+                    title="Actualizar listado de consultas médicas"
+                  >
+                    <span class="material-symbols-outlined {cargandoConsultas ? 'spinner-icon' : ''}">refresh</span>
+                  </button>
+                {/if}
+              </div>
+            </div>
+
+            {#if mostrarConsultas}
+              <div class="bloque-tabla-ondemand">
+                <div class="listado-buscador-wrapper">
+                  <div class="listado-buscador">
+                    <span class="material-symbols-outlined">search</span>
+                    <input 
+                      type="text" 
+                      placeholder="Buscar por diagnóstico, cédula, paciente, médico o especialidad..." 
+                      bind:value={filtroBusquedaConsultas} 
+                      on:keydown={(e) => { if (e.key === 'Enter') recargarConsultas(); }}
+                    />
+                  </div>
+                  <button type="button" class="btn-buscar-mini" on:click={recargarConsultas} disabled={cargandoConsultas}>
+                    Buscar
+                  </button>
+                  <span class="badge-total-items">{consultasFiltradas.length} consultas registradas</span>
+                </div>
+
+                {#if cargandoConsultas}
+                  <div class="cargando-fila">
+                    <span class="material-symbols-outlined spinner-icon">progress_activity</span>
+                    <span>Consultando registro médico de consultas...</span>
+                  </div>
+                {:else if consultasFiltradas.length === 0}
+                  <div class="vacio-fila">
+                    <span class="material-symbols-outlined">medication_liquid</span>
+                    <p>No se encontraron consultas médicas registradas con los criterios indicados.</p>
+                  </div>
+                {:else}
+                  <div class="tabla-existencia-responsive">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Fecha / Hora</th>
+                          <th>Cédula</th>
+                          <th>Paciente</th>
+                          <th>Médico Tratante</th>
+                          <th>Especialidad</th>
+                          <th>Diagnóstico Clínico</th>
+                          <th>Reposo / Suspensión</th>
+                          <th>Estado</th>
+                          <th class="th-acciones">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {#each consultasFiltradas as cons}
+                          <tr>
+                            <td>
+                              <div class="fecha-hora-bloque">
+                                <span class="texto-bold">{cons.fecha_formateada || cons.fecha_consulta}</span>
+                                {#if cons.hora_formateada}
+                                  <span class="hora-subtexto">{cons.hora_formateada}</span>
+                                {/if}
+                              </div>
+                            </td>
+                            <td class="texto-bold">{cons.cedula_paciente}</td>
+                            <td class="texto-bold-primario">
+                              <div>{cons.nombre_completo_paciente}</div>
+                              <span class="badge-parentesco {cons.parentesco_paciente ? 'beneficiario' : 'titular'}">
+                                {cons.parentesco_paciente ? `Beneficiario (${cons.parentesco_paciente})` : 'Titular'}
+                              </span>
+                            </td>
+                            <td>{cons.nombre_doctor}</td>
+                            <td><span class="badge-esp-tabla">{cons.tipo_especialidad}</span></td>
+                            <td class="col-diagnostico-tabla">
+                              <span class="badge-diagnostico-item" title={cons.diagnostico_consulta}>
+                                {cons.diagnostico_consulta}
+                              </span>
+                            </td>
+                            <td>
+                              {#if cons.tiene_reposo}
+                                <span class="badge-reposo con-reposo" title="Reposo asignado">
+                                  <span class="material-symbols-outlined">hotel</span>
+                                  <span>{cons.fecha_inicio_suspension} al {cons.fecha_final_suspension}</span>
+                                </span>
+                              {:else}
+                                <span class="badge-reposo sin-reposo">Sin reposo</span>
+                              {/if}
+                            </td>
+                            <td><span class="badge-activo">Activa</span></td>
+                            <td class="td-acciones">
+                              <div class="botones-accion-fila">
+                                <button 
+                                  type="button" 
+                                  class="btn-accion-editar" 
+                                  on:click={() => abrirModalEditarConsulta(cons)}
+                                  title="Modificar consulta médica"
+                                >
+                                  <span class="material-symbols-outlined">edit</span>
+                                  <span>Editar</span>
+                                </button>
+                                <button 
+                                  type="button" 
+                                  class="btn-accion-eliminar" 
+                                  on:click={() => abrirModalEliminarConsulta(cons)}
+                                  title="Dar de baja (ocultamiento lógico)"
+                                >
+                                  <span class="material-symbols-outlined">delete</span>
+                                  <span>Eliminar</span>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        {/each}
+                      </tbody>
+                    </table>
+                  </div>
+                {/if}
+              </div>
+            {/if}
+          </div>
+        {/if}
+
+        <!-- ======================================================= -->
         <!-- TAB 5: HISTORIAL AGREGADO / EDITADO / ELIMINADO -->
         <!-- ======================================================= -->
         {#if tabActiva === 'auditoria'}
@@ -1785,6 +2148,8 @@
                   <option value="PACIENTE">Pacientes</option>
                   <option value="USUARIO">Usuarios</option>
                   <option value="ESPECIALIDAD">Especialidades</option>
+                  <option value="CONSULTA">Consultas Médicas</option>
+                  <option value="CONSULTA">Consultas Médicas</option>
                 </select>
               </div>
             </div>
@@ -2302,9 +2667,323 @@
   </div>
 {/if}
 
+<!-- MODAL: EDITAR CONSULTA -->
+{#if consultaAEditar}
+  <div class="modal-overlay" on:click|self={() => consultaAEditar = null}>
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-titulo">
+          <span class="material-symbols-outlined">stethoscope</span>
+          <h3>Modificar Consulta Médica</h3>
+        </div>
+        <button type="button" class="btn-cerrar-modal" on:click={() => consultaAEditar = null}>
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <form on:submit|preventDefault={ejecutarEdicionConsulta} class="modal-body form-grid">
+        <!-- Banner del Paciente (Solo lectura) -->
+        <div class="form-group full-width banner-paciente-edicion">
+          <div class="avatar-mini-paciente">
+            <span class="material-symbols-outlined">person</span>
+          </div>
+          <div class="datos-mini-paciente">
+            <span class="lbl-mini-pac">Paciente Atendido:</span>
+            <strong class="nombre-mini-pac">{consultaAEditar.nombre_completo_paciente}</strong>
+            <span class="cedula-mini-pac">Cédula: {consultaAEditar.cedula_paciente}</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="ed_cons_fecha">Fecha de la Consulta *</label>
+          <input type="date" id="ed_cons_fecha" bind:value={formEditarConsulta.fecha_consulta} required disabled={guardando} />
+        </div>
+
+        <div class="form-group">
+          <label for="ed_cons_esp">Especialidad Médica *</label>
+          <select 
+            id="ed_cons_esp" 
+            bind:value={formEditarConsulta.especialidad_consulta} 
+            on:change={alCambiarEspecialidadEdicionConsulta}
+            disabled={guardando} 
+            required
+          >
+            {#each especialidadesDisponibles as esp}
+              <option value={String(esp.id_especialidad)}>{esp.tipo_especialidad}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="form-group full-width">
+          <label for="ed_cons_doc">Doctor Tratante *</label>
+          <select id="ed_cons_doc" bind:value={formEditarConsulta.doctor_consulta} disabled={guardando || cargandoDoctoresEdicion} required>
+            {#if cargandoDoctoresEdicion}
+              <option value="">Cargando especialistas...</option>
+            {:else if doctoresEdicionConsulta.length === 0}
+              <option value="">Sin especialistas vinculados a esta especialidad</option>
+            {:else}
+              {#each doctoresEdicionConsulta as doc}
+                <option value={String(doc.id_doctor)}>{doc.nombre_completo}</option>
+              {/each}
+            {/if}
+          </select>
+        </div>
+
+        <div class="form-group full-width">
+          <label for="ed_cons_diag">Diagnóstico Médico / Observaciones Clínicas *</label>
+          <textarea 
+            id="ed_cons_diag" 
+            bind:value={formEditarConsulta.diagnostico_consulta} 
+            on:input={() => {
+              if (formEditarConsulta.diagnostico_consulta) {
+                formEditarConsulta.diagnostico_consulta = formEditarConsulta.diagnostico_consulta.toUpperCase();
+              }
+            }}
+            rows="3" 
+            style="text-transform: uppercase;"
+            placeholder="Describa el diagnóstico clínico..." 
+            disabled={guardando} 
+            required
+          ></textarea>
+        </div>
+
+        <!-- Sección Reposo Médico en Edición -->
+        <div class="form-group full-width seccion-reposo-modal">
+          <label class="label-switch">
+            <input 
+              type="checkbox" 
+              bind:checked={formEditarConsulta.tiene_reposo} 
+              disabled={guardando}
+            />
+            <span class="switch-texto">¿Aplica Reposo Médico / Suspensión Laboral?</span>
+          </label>
+
+          {#if formEditarConsulta.tiene_reposo}
+            <div class="grid-fechas-reposo-modal">
+              <div>
+                <label for="ed_rep_inicio">Fecha Inicio del Reposo *</label>
+                <input 
+                  type="date" 
+                  id="ed_rep_inicio" 
+                  bind:value={formEditarConsulta.fecha_inicio_suspension} 
+                  required={formEditarConsulta.tiene_reposo}
+                  disabled={guardando}
+                />
+              </div>
+              <div>
+                <label for="ed_rep_fin">Fecha Final del Reposo *</label>
+                <input 
+                  type="date" 
+                  id="ed_rep_fin" 
+                  bind:value={formEditarConsulta.fecha_final_suspension} 
+                  required={formEditarConsulta.tiene_reposo}
+                  disabled={guardando}
+                />
+              </div>
+            </div>
+          {/if}
+        </div>
+
+        <div class="modal-footer full-width">
+          <button type="button" class="btn-cancelar" on:click={() => consultaAEditar = null} disabled={guardando}>
+            Cancelar
+          </button>
+          <button type="submit" class="btn-guardar-modal" disabled={guardando}>
+            <span class="material-symbols-outlined">{guardando ? 'hourglass_top' : 'save'}</span>
+            <span>{guardando ? 'Actualizando...' : 'Guardar Cambios'}</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
+
+<!-- MODAL: CONFIRMAR BAJA CONSULTA -->
+{#if consultaAEliminar}
+  <div class="modal-overlay" on:click|self={() => consultaAEliminar = null}>
+    <div class="modal-card modal-peligro">
+      <div class="modal-header">
+        <div class="modal-titulo titulo-peligro">
+          <span class="material-symbols-outlined">warning</span>
+          <h3>Dar de Baja a Consulta Médica</h3>
+        </div>
+        <button type="button" class="btn-cerrar-modal" on:click={() => consultaAEliminar = null}>
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <p class="pregunta-eliminar">
+          ¿Desea dar de baja (ocultar) la consulta médica del paciente <strong>{consultaAEliminar.nombre_completo_paciente}</strong> (C.I. {consultaAEliminar.cedula_paciente}) atendida por el <strong>{consultaAEliminar.nombre_doctor}</strong> con diagnóstico <strong>"{consultaAEliminar.diagnostico_consulta}"</strong>?
+        </p>
+
+        {#if consultaAEliminar.tiene_reposo}
+          <div class="aviso-reposo-vinculado">
+            <span class="material-symbols-outlined">hotel</span>
+            <span>Esta consulta posee una suspensión o reposo médico activo ({consultaAEliminar.fecha_inicio_suspension} al {consultaAEliminar.fecha_final_suspension}). Al confirmar la baja, el reposo también será archivado de forma coordinada.</span>
+          </div>
+        {/if}
+
+        <div class="caja-aviso-segura">
+          <span class="material-symbols-outlined">lock</span>
+          <div>
+            <strong>Protección de Historial Médico y Auditoría:</strong>
+            <p>Se efectúa una baja lógica. La consulta y sus registros previos permanecen archivados en la base de datos para auditorías legales e institucionales.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar" on:click={() => consultaAEliminar = null} disabled={guardando}>
+          Cancelar
+        </button>
+        <button type="button" class="btn-confirmar-eliminar" on:click={ejecutarBajaConsulta} disabled={guardando}>
+          <span class="material-symbols-outlined">{guardando ? 'hourglass_top' : 'delete'}</span>
+          <span>{guardando ? 'Procesando...' : 'Confirmar Ocultamiento'}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <Footer />
 
 <style>
+  .btn-ir-crear-consulta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #0284c7;
+    color: #ffffff;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 600;
+    transition: background 0.2s;
+  }
+
+  .btn-ir-crear-consulta:hover {
+    background: #0369a1;
+  }
+
+  .col-diagnostico-tabla {
+    max-width: 260px;
+  }
+
+  .badge-diagnostico-item {
+    display: inline-block;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: 0.02em;
+    font-size: 0.88rem;
+  }
+
+  .badge-reposo {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .badge-reposo.con-reposo {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+
+  .badge-reposo.sin-reposo {
+    background: #f1f5f9;
+    color: #64748b;
+  }
+
+  .banner-paciente-edicion {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 10px;
+    padding: 12px 16px;
+  }
+
+  .avatar-mini-paciente {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #0284c7;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .datos-mini-paciente {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .lbl-mini-pac {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #0369a1;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .nombre-mini-pac {
+    font-size: 1rem;
+    color: #0f172a;
+  }
+
+  .cedula-mini-pac {
+    font-size: 0.82rem;
+    color: #475569;
+  }
+
+  .seccion-reposo-modal {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 14px;
+  }
+
+  .grid-fechas-reposo-modal {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 10px;
+  }
+
+  .aviso-reposo-vinculado {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fffbeb;
+    border: 1px solid #fef3c7;
+    color: #92400e;
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin: 12px 0;
+    font-size: 0.88rem;
+    font-weight: 500;
+  }
+
+  .fecha-hora-bloque {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .hora-subtexto {
+    font-size: 0.76rem;
+    color: #64748b;
+  }
+
   .form-container {
     background-color: #ffffff;
     padding: 30px 34px;
