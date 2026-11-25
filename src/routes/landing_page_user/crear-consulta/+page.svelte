@@ -13,7 +13,7 @@
   import Sidebar from '$lib/components/Sidebar.svelte';
   import Footer from '$lib/components/Footer.svelte';
 
-  let usuarioActual: { id: number; nombre: string; rol: string } | null = null;
+  let usuarioActual: { id?: string; nombre?: string; rol?: string } | null = null;
 
   let formulario: any = {
     especialidad_consulta: '',

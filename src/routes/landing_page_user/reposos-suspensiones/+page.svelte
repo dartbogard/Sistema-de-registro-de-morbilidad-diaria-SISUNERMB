@@ -109,20 +109,15 @@
     return soloFecha;
   }
 
-  // Filtrado reactivo en memoria
+  // Filtrado reactivo en memoria (Soporte multi-palabra y nombres compuestos)
   $: suspensionesFiltradas = todasSuspensiones.filter(item => {
     if (filtroEstado === 'activas' && !item.es_activa) return false;
     if (filtroEstado === 'reincidentes' && Number(item.total_suspensiones_historicas || 0) < 2) return false;
 
     if (busquedaTexto.trim()) {
-      const q = busquedaTexto.toLowerCase().trim();
-      const pac = (item.nombre_completo_paciente || '').toLowerCase();
-      const ci = (item.cedula_paciente || '').toLowerCase();
-      const doc = (item.doctor || '').toLowerCase();
-      const esp = (item.tipo_especialidad || '').toLowerCase();
-      const diag = (item.diagnostico_consulta || '').toLowerCase();
-
-      if (!pac.includes(q) && !ci.includes(q) && !doc.includes(q) && !esp.includes(q) && !diag.includes(q)) {
+      const palabras = busquedaTexto.toLowerCase().trim().split(/\s+/).filter(Boolean);
+      const textoCompleto = `${item.nombre_completo_paciente || ''} ${item.nombre_titular_paciente || ''} ${item.cedula_paciente || ''} ${item.doctor || ''} ${item.tipo_especialidad || ''} ${item.diagnostico_consulta || ''} ${item.tipo_personal_paciente || ''}`.toLowerCase();
+      if (!palabras.every(palabra => textoCompleto.includes(palabra))) {
         return false;
       }
     }

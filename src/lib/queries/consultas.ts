@@ -118,8 +118,61 @@ export async function obtenerHistorialPorCedula(terminoBusqueda: string) {
   if (!terminoLimpio) return [];
 
   const soloNumeros = terminoLimpio.replace(/^[VvEeJjGg]-?/, '').trim();
-  const conPrefijoV = 'V-' + soloNumeros;
-  const conPrefijoE = 'E-' + soloNumeros;
+  const esCedula = /^[VvEeJjGg]?-?\d+$/.test(terminoLimpio);
+
+  // 1. Si es búsqueda por número de cédula
+  if (esCedula && soloNumeros.length > 0) {
+    const conPrefijoV = 'V-' + soloNumeros;
+    const conPrefijoE = 'E-' + soloNumeros;
+
+    return await db.select(
+      `SELECT 
+        c.id_consulta,
+        c.fecha_consulta,
+        c.fecha_creacion_consulta,
+        TO_CHAR(COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) AT TIME ZONE 'America/Caracas', 'DD/MM/YYYY') AS fecha_formateada,
+        TO_CHAR(COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) AT TIME ZONE 'America/Caracas', 'HH12:MI AM') AS hora_formateada,
+        c.diagnostico_consulta,
+        p.nombre_completo_paciente,
+        p.ci_titular_paciente,
+        p.ci_beneficiario_paciente,
+        d.nombre_doctor || ' ' || d.apellido_doctor AS nombre_doctor,
+        e.tipo_especialidad
+       FROM public."CONSULTA" c
+       INNER JOIN public."PACIENTE" p ON c.paciente_consulta = p.id_paciente
+       INNER JOIN public."DOCTOR" d ON c.doctor_consulta = d.id_doctor
+       INNER JOIN public."ESPECIALIDAD" e ON c.especialidad_consulta = e.id_especialidad
+       WHERE (
+         p.ci_titular_paciente = $1 OR p.ci_beneficiario_paciente = $1
+         OR p.ci_titular_paciente = $2 OR p.ci_beneficiario_paciente = $2
+         OR p.ci_titular_paciente = $3 OR p.ci_beneficiario_paciente = $3
+         OR p.ci_titular_paciente = $4 OR p.ci_beneficiario_paciente = $4
+         OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || $2 || '%'
+         OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || $2 || '%'
+       )
+         AND c.fecha_eliminacion_consulta IS NULL
+       ORDER BY COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) DESC`,
+      [terminoLimpio, soloNumeros, conPrefijoV, conPrefijoE] 
+    );
+  }
+
+  // 2. Si es búsqueda por nombre y/o apellido (palabras individuales para tolerar nombres intermedios)
+  const palabras = terminoLimpio.split(/\s+/).filter(Boolean);
+  const params: any[] = [];
+  const condiciones: string[] = [];
+
+  palabras.forEach(palabra => {
+    params.push(palabra);
+    const idx = params.length;
+    condiciones.push(`(
+      p.nombre_completo_paciente ILIKE '%' || $${idx} || '%'
+      OR p.nombre_titular_paciente ILIKE '%' || $${idx} || '%'
+      OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
+      OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
+    )`);
+  });
+
+  const clausulaWhere = condiciones.length > 0 ? ` AND ` + condiciones.join(' AND ') : '';
 
   return await db.select(
     `SELECT 
@@ -138,19 +191,10 @@ export async function obtenerHistorialPorCedula(terminoBusqueda: string) {
      INNER JOIN public."PACIENTE" p ON c.paciente_consulta = p.id_paciente
      INNER JOIN public."DOCTOR" d ON c.doctor_consulta = d.id_doctor
      INNER JOIN public."ESPECIALIDAD" e ON c.especialidad_consulta = e.id_especialidad
-     WHERE (
-       p.ci_titular_paciente = $1 OR p.ci_beneficiario_paciente = $1
-       OR p.ci_titular_paciente = $2 OR p.ci_beneficiario_paciente = $2
-       OR p.ci_titular_paciente = $3 OR p.ci_beneficiario_paciente = $3
-       OR p.ci_titular_paciente = $4 OR p.ci_beneficiario_paciente = $4
-       OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || $1 || '%'
-       OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || $1 || '%'
-       OR p.nombre_completo_paciente ILIKE '%' || $1 || '%'
-       OR p.nombre_titular_paciente ILIKE '%' || $1 || '%'
-     )
-       AND c.fecha_eliminacion_consulta IS NULL
+     WHERE c.fecha_eliminacion_consulta IS NULL
+     ${clausulaWhere}
      ORDER BY COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) DESC`,
-    [terminoLimpio, soloNumeros, conPrefijoV, conPrefijoE] 
+    params
   );
 }
 
@@ -158,14 +202,14 @@ export const obtenerHistorialPorPaciente = obtenerHistorialPorCedula;
 
 /**
  * Obtiene el reporte de morbilidad agrupado por diagnóstico y especialidad en un rango de fechas,
- * con soporte para filtrar por cédula o nombre/apellido del paciente.
+ * con soporte para filtrar por cédula o nombre/apellido del paciente y normalización de diagnósticos.
  */
 export async function obtenerReporteMorbilidad(fechaInicio?: string, fechaFin?: string, filtroPaciente?: string) {
   const db = await getDb();
   
   let query = `
     SELECT 
-      c.diagnostico_consulta AS diagnostico,
+      INITCAP(TRIM(BOTH ' .,;:-' FROM c.diagnostico_consulta)) AS diagnostico,
       COUNT(c.id_consulta)::INTEGER AS total_casos,
       e.tipo_especialidad AS especialidad,
       COALESCE(STRING_AGG(DISTINCT p.nombre_completo_paciente, ', '), 'Sin paciente asignado') AS paciente
@@ -187,24 +231,27 @@ export async function obtenerReporteMorbilidad(fechaInicio?: string, fechaFin?: 
   }
 
   if (filtroPaciente?.trim()) {
-    params.push(filtroPaciente.trim());
-    const idx = params.length;
-    query += ` AND (
-      p.nombre_completo_paciente ILIKE '%' || $${idx} || '%'
-      OR p.nombre_titular_paciente ILIKE '%' || $${idx} || '%'
-      OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
-      OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
-    ) `;
+    const palabras = filtroPaciente.trim().split(/\s+/).filter(Boolean);
+    palabras.forEach(palabra => {
+      params.push(palabra);
+      const idx = params.length;
+      query += ` AND (
+        p.nombre_completo_paciente ILIKE '%' || $${idx} || '%'
+        OR p.nombre_titular_paciente ILIKE '%' || $${idx} || '%'
+        OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
+        OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
+      ) `;
+    });
   }
 
-  query += ` GROUP BY c.diagnostico_consulta, e.tipo_especialidad ORDER BY total_casos DESC `;
+  query += ` GROUP BY INITCAP(TRIM(BOTH ' .,;:-' FROM c.diagnostico_consulta)), e.tipo_especialidad ORDER BY total_casos DESC `;
 
   return await db.select(query, params);
 }
 
 /**
  * Obtiene el detalle individual de cada consulta en el rango de fechas con datos del paciente y doctor,
- * con soporte para filtrar por cédula o nombre/apellido del paciente.
+ * con soporte para filtrar por cédula o nombre/apellido del paciente y normalización de diagnósticos.
  */
 export async function obtenerConsultasDetalladas(fechaInicio?: string, fechaFin?: string, filtroPaciente?: string) {
   const db = await getDb();
@@ -214,7 +261,7 @@ export async function obtenerConsultasDetalladas(fechaInicio?: string, fechaFin?
       c.id_consulta,
       TO_CHAR(COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) AT TIME ZONE 'America/Caracas', 'YYYY-MM-DD') AS fecha_consulta,
       TO_CHAR(COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) AT TIME ZONE 'America/Caracas', 'HH12:MI AM') AS hora_consulta,
-      c.diagnostico_consulta AS diagnostico,
+      INITCAP(TRIM(BOTH ' .,;:-' FROM c.diagnostico_consulta)) AS diagnostico,
       COALESCE(p.nombre_completo_paciente, 'Sin registrar') AS paciente,
       COALESCE(p.ci_beneficiario_paciente, p.ci_titular_paciente, 'S/C') AS cedula,
       e.tipo_especialidad AS especialidad,
@@ -238,14 +285,17 @@ export async function obtenerConsultasDetalladas(fechaInicio?: string, fechaFin?
   }
 
   if (filtroPaciente?.trim()) {
-    params.push(filtroPaciente.trim());
-    const idx = params.length;
-    query += ` AND (
-      p.nombre_completo_paciente ILIKE '%' || $${idx} || '%'
-      OR p.nombre_titular_paciente ILIKE '%' || $${idx} || '%'
-      OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
-      OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
-    ) `;
+    const palabras = filtroPaciente.trim().split(/\s+/).filter(Boolean);
+    palabras.forEach(palabra => {
+      params.push(palabra);
+      const idx = params.length;
+      query += ` AND (
+        p.nombre_completo_paciente ILIKE '%' || $${idx} || '%'
+        OR p.nombre_titular_paciente ILIKE '%' || $${idx} || '%'
+        OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
+        OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
+      ) `;
+    });
   }
 
   query += ` ORDER BY COALESCE(c.fecha_creacion_consulta, c.fecha_consulta) DESC, c.id_consulta DESC `;

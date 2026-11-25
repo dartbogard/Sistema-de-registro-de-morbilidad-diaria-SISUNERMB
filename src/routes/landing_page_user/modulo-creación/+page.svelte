@@ -135,44 +135,34 @@
   let pacienteAEliminar: Paciente | null = null;
 
   // ==========================================
-  // FILTRADO REACTIVO EN MEMORIA
+  // FILTRADO REACTIVO EN MEMORIA (Soporte multi-palabra y nombres compuestos)
   // ==========================================
   $: doctoresFiltrados = listaDoctores.filter(doc => {
     if (!filtroBusquedaDoctores.trim()) return true;
-    const q = filtroBusquedaDoctores.toLowerCase().trim();
-    return (
-      (doc.nombre_completo || '').toLowerCase().includes(q) ||
-      (doc.ci_doctor || '').toLowerCase().includes(q) ||
-      (doc.ci_profesional_doctor || '').toLowerCase().includes(q) ||
-      (doc.especialidades || '').toLowerCase().includes(q)
-    );
+    const palabras = filtroBusquedaDoctores.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    const cadenaDoc = `${doc.nombre_completo || ''} ${doc.ci_doctor || ''} ${doc.ci_profesional_doctor || ''} ${doc.especialidades || ''}`.toLowerCase();
+    return palabras.every(palabra => cadenaDoc.includes(palabra));
   });
 
   $: especialidadesFiltradas = listaEspecialidades.filter(esp => {
     if (!filtroBusquedaEspecialidades.trim()) return true;
-    const q = filtroBusquedaEspecialidades.toLowerCase().trim();
-    return (esp.tipo_especialidad || '').toLowerCase().includes(q);
+    const palabras = filtroBusquedaEspecialidades.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    const cadenaEsp = (esp.tipo_especialidad || '').toLowerCase();
+    return palabras.every(palabra => cadenaEsp.includes(palabra));
   });
 
   $: usuariosFiltrados = listaUsuarios.filter(usr => {
     if (!filtroBusquedaUsuarios.trim()) return true;
-    const q = filtroBusquedaUsuarios.toLowerCase().trim();
-    return (
-      (usr.nombre_usuario || '').toLowerCase().includes(q) ||
-      (usr.rol_usuario || '').toLowerCase().includes(q)
-    );
+    const palabras = filtroBusquedaUsuarios.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    const cadenaUsr = `${usr.nombre_usuario || ''} ${usr.rol_usuario || ''}`.toLowerCase();
+    return palabras.every(palabra => cadenaUsr.includes(palabra));
   });
 
   $: pacientesFiltrados = listaPacientes.filter(pac => {
     if (!filtroBusquedaPacientes.trim()) return true;
-    const q = filtroBusquedaPacientes.toLowerCase().trim();
-    return (
-      (pac.nombre_completo_paciente || '').toLowerCase().includes(q) ||
-      (pac.nombre_titular_paciente || '').toLowerCase().includes(q) ||
-      (pac.ci_titular_paciente || '').toLowerCase().includes(q) ||
-      (pac.ci_beneficiario_paciente || '').toLowerCase().includes(q) ||
-      (pac.tipo_personal_paciente || '').toLowerCase().includes(q)
-    );
+    const palabras = filtroBusquedaPacientes.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    const cadenaPac = `${pac.nombre_completo_paciente || ''} ${pac.nombre_titular_paciente || ''} ${pac.ci_titular_paciente || ''} ${pac.ci_beneficiario_paciente || ''} ${pac.tipo_personal_paciente || ''} ${pac.categoria_trabajador_paciente || ''}`.toLowerCase();
+    return palabras.every(palabra => cadenaPac.includes(palabra));
   });
 
   $: auditoriaFiltrada = listaAuditoria.filter(item => {
@@ -183,13 +173,9 @@
       return false;
     }
     if (!filtroBusquedaAuditoria.trim()) return true;
-    const q = filtroBusquedaAuditoria.toLowerCase().trim();
-    return (
-      (item.usuario_auditoria || '').toLowerCase().includes(q) ||
-      (item.detalle_auditoria || '').toLowerCase().includes(q) ||
-      (item.accion_auditoria || '').toLowerCase().includes(q) ||
-      (item.entidad_auditoria || '').toLowerCase().includes(q)
-    );
+    const palabras = filtroBusquedaAuditoria.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    const cadenaAud = `${item.usuario_auditoria || ''} ${item.detalle_auditoria || ''} ${item.accion_auditoria || ''} ${item.entidad_auditoria || ''}`.toLowerCase();
+    return palabras.every(palabra => cadenaAud.includes(palabra));
   });
 
   // ==========================================

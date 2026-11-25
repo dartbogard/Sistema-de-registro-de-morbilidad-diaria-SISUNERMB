@@ -156,7 +156,7 @@ export async function obtenerPacientesRecientes(limite = 30): Promise<Paciente[]
 }
 
 /**
- * Busca pacientes por número de cédula (titular o beneficiario) o nombre/apellido.
+ * Busca pacientes por número de cédula (titular o beneficiario) o nombre/apellido (soporta nombres compuestos, ej: "omar oberto").
  */
 export async function buscarPacientePorCedula(termino: string): Promise<Paciente[]> {
   const db = await getDb();
@@ -165,8 +165,61 @@ export async function buscarPacientePorCedula(termino: string): Promise<Paciente
   if (!textoLimpio) return [];
 
   const soloNumeros = textoLimpio.replace(/^[VvEeJjGg]-?/, '').trim();
-  const conPrefijoV = 'V-' + soloNumeros;
-  const conPrefijoE = 'E-' + soloNumeros;
+  const esCedula = /^[VvEeJjGg]?-?\d+$/.test(textoLimpio);
+
+  // 1. Si el usuario ingresó una cédula o números
+  if (esCedula && soloNumeros.length > 0) {
+    const conPrefijoV = 'V-' + soloNumeros;
+    const conPrefijoE = 'E-' + soloNumeros;
+
+    return await db.select<Paciente[]>(
+      `SELECT 
+         id_paciente,
+         nombre_completo_paciente,
+         nombre_titular_paciente,
+         ci_titular_paciente,
+         ci_beneficiario_paciente,
+         TO_CHAR(fecha_nacimiento_paciente, 'YYYY-MM-DD') as fecha_nacimiento_paciente,
+         sexo_paciente,
+         tipo_personal_paciente,
+         categoria_trabajador_paciente,
+         parentesco_paciente,
+         fecha_creacion_paciente,
+         fecha_actualizacion_paciente,
+         fecha_eliminacion_paciente
+       FROM public."PACIENTE"
+       WHERE (
+         ci_titular_paciente = $1 OR ci_beneficiario_paciente = $1
+         OR ci_titular_paciente = $2 OR ci_beneficiario_paciente = $2
+         OR ci_titular_paciente = $3 OR ci_beneficiario_paciente = $3
+         OR ci_titular_paciente = $4 OR ci_beneficiario_paciente = $4
+         OR CAST(ci_beneficiario_paciente AS TEXT) ILIKE '%' || $2 || '%'
+         OR CAST(ci_titular_paciente AS TEXT) ILIKE '%' || $2 || '%'
+       )
+       AND fecha_eliminacion_paciente IS NULL
+       ORDER BY nombre_completo_paciente ASC
+       LIMIT 100`,
+      [textoLimpio, soloNumeros, conPrefijoV, conPrefijoE]
+    );
+  }
+
+  // 2. Búsqueda por palabras (permite buscar "Omar Oberto", "Carmen Rodriguez", etc. sin importar el orden o nombres intermedios)
+  const palabras = textoLimpio.split(/\s+/).filter(Boolean);
+  const params: any[] = [];
+  const condiciones: string[] = [];
+
+  palabras.forEach(palabra => {
+    params.push(palabra);
+    const idx = params.length;
+    condiciones.push(`(
+      nombre_completo_paciente ILIKE '%' || $${idx} || '%' 
+      OR nombre_titular_paciente ILIKE '%' || $${idx} || '%'
+      OR CAST(ci_titular_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
+      OR CAST(ci_beneficiario_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
+    )`);
+  });
+
+  const clausulaWhere = condiciones.length > 0 ? ` AND ` + condiciones.join(' AND ') : '';
 
   return await db.select<Paciente[]>(
     `SELECT 
@@ -184,19 +237,11 @@ export async function buscarPacientePorCedula(termino: string): Promise<Paciente
        fecha_actualizacion_paciente,
        fecha_eliminacion_paciente
      FROM public."PACIENTE"
-     WHERE (
-       ci_titular_paciente = $1 OR ci_beneficiario_paciente = $1
-       OR ci_titular_paciente = $2 OR ci_beneficiario_paciente = $2
-       OR ci_titular_paciente = $3 OR ci_beneficiario_paciente = $3
-       OR ci_titular_paciente = $4 OR ci_beneficiario_paciente = $4
-       OR CAST(ci_beneficiario_paciente AS TEXT) ILIKE '%' || $1 || '%'
-       OR CAST(ci_titular_paciente AS TEXT) ILIKE '%' || $1 || '%'
-       OR nombre_completo_paciente ILIKE '%' || $1 || '%'
-       OR nombre_titular_paciente ILIKE '%' || $1 || '%'
-     )
-     AND fecha_eliminacion_paciente IS NULL
-     ORDER BY nombre_completo_paciente ASC`,
-    [textoLimpio, soloNumeros, conPrefijoV, conPrefijoE]
+     WHERE fecha_eliminacion_paciente IS NULL
+     ${clausulaWhere}
+     ORDER BY nombre_completo_paciente ASC
+     LIMIT 100`,
+    params
   );
 }
 

@@ -1,14 +1,17 @@
 -- =====================================================================
--- COPIA DE SEGURIDAD / INSTALACIÓN - BASE DE DATOS SISUNERMB
+-- BASE DE DATOS OFICIAL SISUNERMB - VERSIÓN DE IMPLANTACIÓN LIMPIA
 -- Sistema Integral de Salud UNERMB
--- Generado automáticamente para exportación e instalación en nuevo equipo
+-- Preparada para Pase a Producción Oficial
+-- Incluye: 12.053 pacientes oficiales UNERMB, catálogo de especialidades
+-- Usuario Administrador: Omar
+-- Historial limpio: Doctores, Consultas, Reposos y Auditoría en cero
 -- =====================================================================
 
--- 1. Crear extensiones necesarias para UUIDs y funciones criptográficas
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Eliminar tablas previas si existen (en orden inverso de dependencias)
+DROP TABLE IF EXISTS public."HISTORIAL_AUDITORIA" CASCADE;
 DROP TABLE IF EXISTS public."DOCTOR_ESPECIALIDAD" CASCADE;
 DROP TABLE IF EXISTS public."SUSPENSION" CASCADE;
 DROP TABLE IF EXISTS public."CONSULTA" CASCADE;
@@ -17,8 +20,6 @@ DROP TABLE IF EXISTS public."USUARIO" CASCADE;
 DROP TABLE IF EXISTS public."DOCTOR" CASCADE;
 DROP TABLE IF EXISTS public."ESPECIALIDAD" CASCADE;
 
-
--- -----------------------------------------------------
 -- Tabla: ESPECIALIDAD
 -- -----------------------------------------------------
 CREATE TABLE public."ESPECIALIDAD" (
@@ -51,8 +52,7 @@ CREATE TABLE public."DOCTOR" (
   PRIMARY KEY ("id_doctor")
 );
 
--- Datos de DOCTOR (1 registros)
-INSERT INTO public."DOCTOR" ("id_doctor", "nombre_doctor", "apellido_doctor", "ci_profesional_doctor", "ci_doctor", "fecha_creacion_doctor", "fecha_actualizacion_doctor", "fecha_eliminacion_doctor") VALUES ('701209cd-aa19-42ba-8127-51d3b21ee386', 'Carlos', 'Mendoza', '556677', '30571473', '2026-10-29T02:55:43.821Z', '2026-10-29T02:55:43.821Z', NULL);
+-- Tabla de DOCTOR lista para registrar personal médico oficial (0 registros de prueba)
 
 
 -- -----------------------------------------------------
@@ -69,8 +69,7 @@ CREATE TABLE public."USUARIO" (
   PRIMARY KEY ("id_usuario")
 );
 
--- Datos de USUARIO (2 registros)
-INSERT INTO public."USUARIO" ("id_usuario", "nombre_usuario", "password_usuario", "rol_usuario", "fecha_creacion_usuario", "fecha_actualizacion_usuario", "fecha_eliminacion_usuario") VALUES ('f81b3373-cfc3-4b0c-917c-86492f7882b7', 'miguel', 'semendeloro', 'administrador', '2026-10-19T22:55:17.481Z', '2026-10-19T22:55:17.481Z', NULL);
+-- Datos de USUARIO: Administrador Institucional
 INSERT INTO public."USUARIO" ("id_usuario", "nombre_usuario", "password_usuario", "rol_usuario", "fecha_creacion_usuario", "fecha_actualizacion_usuario", "fecha_eliminacion_usuario") VALUES ('d964890b-c8b5-44eb-87ec-902ef6f13475', 'Omar', 'omar', 'ADMINISTRADOR', '2026-10-31T02:41:40.381Z', '2026-10-31T02:41:40.381Z', NULL);
 
 
@@ -12167,17 +12166,7 @@ CREATE TABLE public."CONSULTA" (
   PRIMARY KEY ("id_consulta")
 );
 
--- Datos de CONSULTA (10 registros)
-INSERT INTO public."CONSULTA" ("id_consulta", "especialidad_consulta", "usuario_consulta", "paciente_consulta", "doctor_consulta", "fecha_consulta", "diagnostico_consulta", "fecha_creacion_consulta", "fecha_actualizacion_consulta", "fecha_eliminacion_consulta") VALUES ('cd15ce2c-fdbd-42a0-9683-7fcbbbd66898', '22330e26-a2c9-4e58-b85c-fceed02f8b16', 'f81b3373-cfc3-4b0c-917c-86492f7882b7', '3cce83e3-a4f5-438b-9947-aae67f05fe39', '701209cd-aa19-42ba-8127-51d3b21ee386', '2026-10-28T00:00:00.000Z', 'gripe', '2026-10-29T03:57:31.987Z', '2026-10-29T03:57:31.987Z', NULL);
-INSERT INTO public."CONSULTA" ("id_consulta", "especialidad_consulta", "usuario_consulta", "paciente_consulta", "doctor_consulta", "fecha_consulta", "diagnostico_consulta", "fecha_creacion_consulta", "fecha_actualizacion_consulta", "fecha_eliminacion_consulta") VALUES ('0066c9ba-e311-4adc-8306-c67e87bd622d', '22330e26-a2c9-4e58-b85c-fceed02f8b16', 'f81b3373-cfc3-4b0c-917c-86492f7882b7', '3cce83e3-a4f5-438b-9947-aae67f05fe39', '701209cd-aa19-42ba-8127-51d3b21ee386', '2026-10-29T00:00:00.000Z', 'tos', '2026-10-29T04:27:54.409Z', '2026-10-29T04:27:54.409Z', NULL);
-INSERT INTO public."CONSULTA" ("id_consulta", "especialidad_consulta", "usuario_consulta", "paciente_consulta", "doctor_consulta", "fecha_consulta", "diagnostico_consulta", "fecha_creacion_consulta", "fecha_actualizacion_consulta", "fecha_eliminacion_consulta") VALUES ('6fbe388a-67f0-4134-ad80-9d8248eea3bf', '22330e26-a2c9-4e58-b85c-fceed02f8b16', 'f81b3373-cfc3-4b0c-917c-86492f7882b7', '3cce83e3-a4f5-438b-9947-aae67f05fe39', '701209cd-aa19-42ba-8127-51d3b21ee386', '2026-10-29T00:00:00.000Z', 'gripe', '2026-10-29T04:32:34.423Z', '2026-10-29T04:32:34.423Z', NULL);
-INSERT INTO public."CONSULTA" ("id_consulta", "especialidad_consulta", "usuario_consulta", "paciente_consulta", "doctor_consulta", "fecha_consulta", "diagnostico_consulta", "fecha_creacion_consulta", "fecha_actualizacion_consulta", "fecha_eliminacion_consulta") VALUES ('a27cda4c-95af-4dc1-914f-425dc951142b', '22330e26-a2c9-4e58-b85c-fceed02f8b16', 'f81b3373-cfc3-4b0c-917c-86492f7882b7', '3cce83e3-a4f5-438b-9947-aae67f05fe39', '701209cd-aa19-42ba-8127-51d3b21ee386', '2026-10-29T00:00:00.000Z', 'gripe', '2026-10-29T04:34:40.795Z', '2026-10-29T04:34:40.795Z', NULL);
-INSERT INTO public."CONSULTA" ("id_consulta", "especialidad_consulta", "usuario_consulta", "paciente_consulta", "doctor_consulta", "fecha_consulta", "diagnostico_consulta", "fecha_creacion_consulta", "fecha_actualizacion_consulta", "fecha_eliminacion_consulta") VALUES ('712970ff-84ba-42f6-8b4b-86acd1f641b7', '22330e26-a2c9-4e58-b85c-fceed02f8b16', 'f81b3373-cfc3-4b0c-917c-86492f7882b7', '3cce83e3-a4f5-438b-9947-aae67f05fe39', '701209cd-aa19-42ba-8127-51d3b21ee386', '2026-10-29T00:00:00.000Z', 'gripe-tos', '2026-10-29T04:46:59.013Z', '2026-10-29T04:46:59.013Z', NULL);
-INSERT INTO public."CONSULTA" ("id_consulta", "especialidad_consulta", "usuario_consulta", "paciente_consulta", "doctor_consulta", "fecha_consulta", "diagnostico_consulta", "fecha_creacion_consulta", "fecha_actualizacion_consulta", "fecha_eliminacion_consulta") VALUES ('e3924a93-ed56-4580-b35b-bb12e8789b0b', '22330e26-a2c9-4e58-b85c-fceed02f8b16', 'f81b3373-cfc3-4b0c-917c-86492f7882b7', 'fc060c13-b296-4b2e-ad71-9f752b14a56e', '701209cd-aa19-42ba-8127-51d3b21ee386', '2026-10-29T00:00:00.000Z', 'Diarrea con tos', '2026-10-29T16:51:45.939Z', '2026-10-29T16:51:45.939Z', NULL);
-INSERT INTO public."CONSULTA" ("id_consulta", "especialidad_consulta", "usuario_consulta", "paciente_consulta", "doctor_consulta", "fecha_consulta", "diagnostico_consulta", "fecha_creacion_consulta", "fecha_actualizacion_consulta", "fecha_eliminacion_consulta") VALUES ('5025d0cf-4fbf-4a8b-a7df-a1a319ccb5ac', '22330e26-a2c9-4e58-b85c-fceed02f8b16', 'f81b3373-cfc3-4b0c-917c-86492f7882b7', '1b20ebf9-1230-4123-9cac-e0ec930cc213', '701209cd-aa19-42ba-8127-51d3b21ee386', '2026-10-29T00:00:00.000Z', 'Psicologico- se identifica como otro genero', '2026-10-29T17:38:50.729Z', '2026-10-29T17:38:50.729Z', NULL);
-INSERT INTO public."CONSULTA" ("id_consulta", "especialidad_consulta", "usuario_consulta", "paciente_consulta", "doctor_consulta", "fecha_consulta", "diagnostico_consulta", "fecha_creacion_consulta", "fecha_actualizacion_consulta", "fecha_eliminacion_consulta") VALUES ('ade58bc4-4b5f-4f79-88e9-c06edcf866aa', '22330e26-a2c9-4e58-b85c-fceed02f8b16', 'f81b3373-cfc3-4b0c-917c-86492f7882b7', '8b152b27-e25e-4f85-ade6-969319db90fe', '701209cd-aa19-42ba-8127-51d3b21ee386', '2026-10-30T00:00:00.000Z', 'Gripe', '2026-10-31T02:34:36.486Z', '2026-10-31T02:34:36.486Z', NULL);
-INSERT INTO public."CONSULTA" ("id_consulta", "especialidad_consulta", "usuario_consulta", "paciente_consulta", "doctor_consulta", "fecha_consulta", "diagnostico_consulta", "fecha_creacion_consulta", "fecha_actualizacion_consulta", "fecha_eliminacion_consulta") VALUES ('196a598e-bc22-4f56-b634-ef08c9597682', '07847ec6-4e66-4039-9165-25d7ff4b3abb', 'f81b3373-cfc3-4b0c-917c-86492f7882b7', '8b152b27-e25e-4f85-ade6-969319db90fe', '701209cd-aa19-42ba-8127-51d3b21ee386', '2026-10-30T00:00:00.000Z', 'peo liquido constante', '2026-10-31T03:53:42.994Z', '2026-10-31T03:53:42.994Z', NULL);
-INSERT INTO public."CONSULTA" ("id_consulta", "especialidad_consulta", "usuario_consulta", "paciente_consulta", "doctor_consulta", "fecha_consulta", "diagnostico_consulta", "fecha_creacion_consulta", "fecha_actualizacion_consulta", "fecha_eliminacion_consulta") VALUES ('6bcd7b3a-087d-4783-95ea-ce3e3273ae48', '22330e26-a2c9-4e58-b85c-fceed02f8b16', 'f81b3373-cfc3-4b0c-917c-86492f7882b7', '8b152b27-e25e-4f85-ade6-969319db90fe', '701209cd-aa19-42ba-8127-51d3b21ee386', '2026-10-30T00:00:00.000Z', 'gripe', '2026-10-31T03:56:13.578Z', '2026-10-31T03:56:13.578Z', NULL);
+-- Tabla de CONSULTA lista para atenciones médicas reales (0 registros de prueba)
 
 
 -- -----------------------------------------------------
@@ -12196,12 +12185,7 @@ CREATE TABLE public."SUSPENSION" (
   PRIMARY KEY ("id_suspension")
 );
 
--- Datos de SUSPENSION (5 registros)
-INSERT INTO public."SUSPENSION" ("id_suspension", "consulta_suspension", "especialidad_suspension", "doctor_suspension", "fecha_inicio_suspension", "fecha_final_suspension", "fecha_creacion_suspension", "fecha_actualizacion_suspension", "fecha_eliminacion_suspension") VALUES ('8724a120-326b-44ce-8f68-347f62ec488f', '712970ff-84ba-42f6-8b4b-86acd1f641b7', '22330e26-a2c9-4e58-b85c-fceed02f8b16', '701209cd-aa19-42ba-8127-51d3b21ee386', '2026-10-29T04:00:00.000Z', '2026-11-05T04:00:00.000Z', '2026-10-29T04:46:59.174Z', '2026-10-29T04:46:59.174Z', NULL);
-INSERT INTO public."SUSPENSION" ("id_suspension", "consulta_suspension", "especialidad_suspension", "doctor_suspension", "fecha_inicio_suspension", "fecha_final_suspension", "fecha_creacion_suspension", "fecha_actualizacion_suspension", "fecha_eliminacion_suspension") VALUES ('3d3b3ca7-deb4-4dae-8175-9aa989b94e6b', 'e3924a93-ed56-4580-b35b-bb12e8789b0b', '22330e26-a2c9-4e58-b85c-fceed02f8b16', '701209cd-aa19-42ba-8127-51d3b21ee386', '2026-10-29T04:00:00.000Z', '2026-11-05T04:00:00.000Z', '2026-10-29T16:51:46.111Z', '2026-10-29T16:51:46.111Z', NULL);
-INSERT INTO public."SUSPENSION" ("id_suspension", "consulta_suspension", "especialidad_suspension", "doctor_suspension", "fecha_inicio_suspension", "fecha_final_suspension", "fecha_creacion_suspension", "fecha_actualizacion_suspension", "fecha_eliminacion_suspension") VALUES ('bbaf60cc-1c6b-4cdc-9b9c-437beed424b1', 'ade58bc4-4b5f-4f79-88e9-c06edcf866aa', '22330e26-a2c9-4e58-b85c-fceed02f8b16', '701209cd-aa19-42ba-8127-51d3b21ee386', '2026-10-30T04:00:00.000Z', '2026-11-06T04:00:00.000Z', '2026-10-31T02:34:36.776Z', '2026-10-31T02:34:36.776Z', NULL);
-INSERT INTO public."SUSPENSION" ("id_suspension", "consulta_suspension", "especialidad_suspension", "doctor_suspension", "fecha_inicio_suspension", "fecha_final_suspension", "fecha_creacion_suspension", "fecha_actualizacion_suspension", "fecha_eliminacion_suspension") VALUES ('b545b07c-4bdc-403e-aa52-7eba8be3ff08', '196a598e-bc22-4f56-b634-ef08c9597682', '07847ec6-4e66-4039-9165-25d7ff4b3abb', '701209cd-aa19-42ba-8127-51d3b21ee386', '2026-10-30T04:00:00.000Z', '2026-11-14T04:00:00.000Z', '2026-10-31T03:53:43.137Z', '2026-10-31T03:53:43.137Z', NULL);
-INSERT INTO public."SUSPENSION" ("id_suspension", "consulta_suspension", "especialidad_suspension", "doctor_suspension", "fecha_inicio_suspension", "fecha_final_suspension", "fecha_creacion_suspension", "fecha_actualizacion_suspension", "fecha_eliminacion_suspension") VALUES ('e438074e-5816-4a8b-a6a0-5cc14d63c04c', '6bcd7b3a-087d-4783-95ea-ce3e3273ae48', '22330e26-a2c9-4e58-b85c-fceed02f8b16', '701209cd-aa19-42ba-8127-51d3b21ee386', '2026-10-30T04:00:00.000Z', '2026-11-07T04:00:00.000Z', '2026-10-31T03:56:13.720Z', '2026-10-31T03:56:13.720Z', NULL);
+-- Tabla de SUSPENSION (Reposos) lista para emisión oficial (0 registros de prueba)
 
 
 -- -----------------------------------------------------
@@ -12225,3 +12209,5 @@ CREATE TABLE IF NOT EXISTS public."HISTORIAL_AUDITORIA" (
   "fecha_auditoria" timestamp with time zone DEFAULT (NOW() AT TIME ZONE 'America/Caracas') NOT NULL,
   PRIMARY KEY ("id_auditoria")
 );
+
+-- Tabla de HISTORIAL_AUDITORIA lista para registrar eventos en producción (0 registros)

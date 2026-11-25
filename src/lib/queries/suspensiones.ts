@@ -113,18 +113,55 @@ export async function obtenerSuspensionesActivas(): Promise<SuspensionDetallada[
 
 export async function obtenerSuspensionesPorCedula(terminoBusqueda: string): Promise<SuspensionDetallada[]> {
   const db = await getDb();
-  const termino = String(terminoBusqueda).trim();
+  const termino = String(terminoBusqueda || '').trim();
+  if (!termino) return [];
+
+  const soloNumeros = termino.replace(/^[VvEeJjGg]-?/, '').trim();
+  const esCedula = /^[VvEeJjGg]?-?\d+$/.test(termino);
+
+  if (esCedula && soloNumeros.length > 0) {
+    const conPrefijoV = 'V-' + soloNumeros;
+    const conPrefijoE = 'E-' + soloNumeros;
+
+    const query = `${BASE_QUERY_SUSPENSIONES} 
+      AND (
+        TRIM(CAST(p.ci_beneficiario_paciente AS TEXT)) = TRIM($1)
+        OR TRIM(CAST(p.ci_titular_paciente AS TEXT)) = TRIM($1)
+        OR TRIM(CAST(p.ci_beneficiario_paciente AS TEXT)) = TRIM($2)
+        OR TRIM(CAST(p.ci_titular_paciente AS TEXT)) = TRIM($2)
+        OR TRIM(CAST(p.ci_beneficiario_paciente AS TEXT)) = TRIM($3)
+        OR TRIM(CAST(p.ci_titular_paciente AS TEXT)) = TRIM($3)
+        OR TRIM(CAST(p.ci_beneficiario_paciente AS TEXT)) = TRIM($4)
+        OR TRIM(CAST(p.ci_titular_paciente AS TEXT)) = TRIM($4)
+        OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || TRIM($2) || '%'
+        OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || TRIM($2) || '%'
+      )
+      ORDER BY s.fecha_inicio_suspension DESC`;
+    return await db.select<SuspensionDetallada[]>(query, [termino, soloNumeros, conPrefijoV, conPrefijoE]);
+  }
+
+  // Búsqueda por palabras tolerante a nombres intermedios (ej: "omar oberto")
+  const palabras = termino.split(/\s+/).filter(Boolean);
+  const params: any[] = [];
+  const condiciones: string[] = [];
+
+  palabras.forEach(palabra => {
+    params.push(palabra);
+    const idx = params.length;
+    condiciones.push(`(
+      p.nombre_completo_paciente ILIKE '%' || $${idx} || '%'
+      OR p.nombre_titular_paciente ILIKE '%' || $${idx} || '%'
+      OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
+      OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || $${idx} || '%'
+    )`);
+  });
+
+  const clausulaWhere = condiciones.length > 0 ? ` AND ` + condiciones.join(' AND ') : '';
+
   const query = `${BASE_QUERY_SUSPENSIONES} 
-    AND (
-      TRIM(CAST(p.ci_beneficiario_paciente AS TEXT)) = TRIM($1)
-      OR TRIM(CAST(p.ci_titular_paciente AS TEXT)) = TRIM($1)
-      OR CAST(p.ci_beneficiario_paciente AS TEXT) ILIKE '%' || TRIM($1) || '%'
-      OR CAST(p.ci_titular_paciente AS TEXT) ILIKE '%' || TRIM($1) || '%'
-      OR p.nombre_completo_paciente ILIKE '%' || TRIM($1) || '%'
-      OR p.nombre_titular_paciente ILIKE '%' || TRIM($1) || '%'
-    )
+    ${clausulaWhere}
     ORDER BY s.fecha_inicio_suspension DESC`;
-  return await db.select<SuspensionDetallada[]>(query, [termino]);
+  return await db.select<SuspensionDetallada[]>(query, params);
 }
 
 export const obtenerSuspensionesPorPaciente = obtenerSuspensionesPorCedula;
