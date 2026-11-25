@@ -52,7 +52,7 @@ const BASE_QUERY_SUSPENSIONES = `
     s.fecha_creacion_suspension,
     d.nombre_doctor || ' ' || d.apellido_doctor AS doctor,
     e.tipo_especialidad,
-    COALESCE(c.diagnostico_consulta, 'Sin diagnóstico especificado') AS diagnostico_consulta,
+    UPPER(TRIM(COALESCE(c.diagnostico_consulta, 'SIN DIAGNÓSTICO ESPECIFICADO'))) AS diagnostico_consulta,
     c.fecha_consulta,
     p.id_paciente,
     p.nombre_completo_paciente,
@@ -215,7 +215,7 @@ export async function verificarReposoActivoConDoctor(
          TO_CHAR(s.fecha_inicio_suspension, 'YYYY-MM-DD') AS fecha_inicio_suspension,
          TO_CHAR(s.fecha_final_suspension, 'YYYY-MM-DD') AS fecha_final_suspension,
          d.nombre_doctor || ' ' || d.apellido_doctor AS doctor,
-         COALESCE(c.diagnostico_consulta, 'Sin diagnóstico') AS diagnostico,
+         UPPER(TRIM(COALESCE(c.diagnostico_consulta, 'SIN DIAGNÓSTICO'))) AS diagnostico,
          (s.fecha_final_suspension - (CURRENT_DATE AT TIME ZONE 'America/Caracas'))::int AS dias_restantes
        FROM public."SUSPENSION" s
        INNER JOIN public."CONSULTA" c ON s.consulta_suspension = c.id_consulta

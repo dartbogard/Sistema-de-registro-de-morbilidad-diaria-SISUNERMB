@@ -28,7 +28,7 @@ export async function asegurarTablaAuditoria(): Promise<void> {
 export async function registrarAuditoria(
   usuario: string,
   accion: 'AGREGÓ' | 'EDITÓ' | 'ELIMINÓ',
-  entidad: 'DOCTOR' | 'PACIENTE' | 'USUARIO' | 'ESPECIALIDAD',
+  entidad: 'DOCTOR' | 'PACIENTE' | 'USUARIO' | 'ESPECIALIDAD' | 'CONSULTA',
   detalle: string
 ): Promise<void> {
   try {

@@ -2,7 +2,7 @@
   import { goto } from '$app/navigation';
 
   export let moduloActivo: string = '';
-  export let usuarioActual: { id?: string; nombre?: string; rol?: string } | null = null;
+  export let usuarioActual: { id?: string | number; nombre?: string; rol?: string } | null = null;
 
   function cerrarSesion() {
     localStorage.removeItem('usuario_sesion');
